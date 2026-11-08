@@ -115,7 +115,7 @@ export function boot() {
       // Signed in while on the sign-in page: go straight into the app (no extra page).
       if (view === 'welcome' && prev !== null && !s.state.startsWith('signin') && !s.state.startsWith('off')) {
         welcomeSkip((n) => { setView(n); render(); });
-      } else if ((view === 'settings' || view === 'welcome') && prev !== null && !document.getElementById('sheet')) render();
+      } else if ((view === 'settings' || view === 'welcome' || view === 'today') && prev !== null && !document.getElementById('sheet')) render();
       if (prev && (prev.startsWith('signin') || prev.startsWith('off'))) maybePromptConsent(s);
     }
   });

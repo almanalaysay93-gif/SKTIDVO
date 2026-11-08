@@ -9,7 +9,7 @@
 import { call } from '../sync/api.js';
 import * as S from '../store.js';
 import { t } from '../i18n.js';
-import { configured, engine, getRole, gis, setRole, signOut } from '../sync/client.js';
+import { configured, engine, getRole, gis, lastEmail, setRole, signOut } from '../sync/client.js';
 import { CONSENT_VERSION } from '../sync/config.js';
 import { $, esc, fmtDate, fmtTime } from '../ui/format.js';
 import { icon } from '../ui/icons.js';
@@ -35,10 +35,15 @@ export function statusLabel(s, tr = t, time = fmtTime) {
 
 /* ---------- header badge (lives outside #main, survives render) ---------- */
 
+/** Pure: offline wins over signed-out states in the header (no sign-in attempts offline). */
+export function headerStatus(s, online) {
+  return !online && (s.state === 'off' || s.state === 'signin') ? { ...s, state: 'offline' } : s;
+}
+
 export function paintHeader(s = engine.status()) {
   const b = $('#syncBadge');
   if (!b) return;
-  const l = statusLabel(s);
+  const l = statusLabel(headerStatus(s, navigator.onLine !== false));
   b.dataset.tone = l.tone;
   b.innerHTML = `${icon(l.icon)}<span>${esc(l.text)}</span>`;
   b.setAttribute('aria-label', `${t('sync.title')}: ${l.text}`);
@@ -65,8 +70,30 @@ export function localOnlyNote() {
   const u = gis.currentUser();
   const consented = !!u && S.getSyncState().consentVersion === CONSENT_VERSION && S.getSyncState().consentEmail === u.email;
   if (!shouldShowLocalOnlyNote({ configured, signedIn: !!u, consented })) return '';
+  if (!u && lastEmail()) return '';   // Today's account bar already offers "Sign in again"
   return `<p class="banner" id="localOnlyNote">${icon('info')}<span>${esc(t('sync.localOnly'))}</span>
     <button type="button" class="btn btn--ghost" data-sync="${u ? 'consent' : 'goSignin'}">${esc(u ? t('consent.review') : t('sync.signIn'))}</button></p>`;
+}
+
+/* ---------- Today account bar: visible Sign out / Sign in again ---------- */
+
+/** Pure: which account control Today shows. */
+export function accountBarMode({ configured: cfg, signedIn, wasSignedIn, online }) {
+  if (!cfg) return 'none';
+  if (signedIn) return 'signout';
+  if (!wasSignedIn) return 'none';            // never signed in: welcome/local-only note handles it
+  return online ? 'signinAgain' : 'offline';
+}
+
+export function accountBar() {
+  const u = gis.currentUser();
+  const mode = accountBarMode({ configured, signedIn: !!u, wasSignedIn: !!lastEmail(), online: navigator.onLine !== false });
+  if (mode === 'none') return '';
+  if (mode === 'signout') return `<div class="banner account-bar" id="accountBar">${icon('check-circle')}<span>${esc(fill(t('sync.signedInAs'), { email: u.email }))}</span>
+    <button type="button" class="btn btn--ghost" data-sync="signout" id="btnSignOut">${icon('x')}<span>${esc(t('sync.signOut'))}</span></button></div>`;
+  if (mode === 'offline') return `<div class="banner account-bar" id="accountBar">${icon('info')}<span>${esc(t('sync.offlineNoSignin'))}</span></div>`;
+  return `<div class="banner account-bar" id="accountBar" data-tone="warn">${icon('alert')}<span>${esc(fill(t('sync.signInAgain'), { email: lastEmail() }))}</span>
+    <button type="button" class="btn btn--primary" data-sync="signin" id="btnSignInAgain">${icon('shield')}<span>${esc(t('sync.signInAgainBtn'))}</span></button></div>`;
 }
 
 /* ---------- Settings section ---------- */
@@ -96,8 +123,8 @@ export function syncSection() {
         <div style="height:var(--s-3)"></div>
         <button type="button" class="btn btn--danger" data-sync="deleteme" style="width:100%">${icon('trash')}<span>${esc(t('sync.deleteCloud'))}</span></button>
       ` : `
-        ${st.email ? `<p class="row__sub">${esc(fill(t('sync.signInAgain'), { email: st.email }))}</p>` : ''}
-        <button type="button" class="btn btn--primary" data-sync="signin" style="width:100%">${icon('shield')}<span>${esc(t('welcome.signIn'))}</span></button>
+        ${lastEmail() ? `<p class="row__sub">${esc(fill(t('sync.signInAgain'), { email: lastEmail() }))}</p>` : ''}
+        <button type="button" class="btn btn--primary" data-sync="signin" style="width:100%">${icon('shield')}<span>${esc(t(lastEmail() ? 'sync.signInAgainBtn' : 'welcome.signIn'))}</span></button>
       `}
       <div style="height:var(--s-3)"></div>
       <button type="button" class="btn btn--ghost" data-sync="privacy" style="width:100%">${icon('info')}<span>${esc(t('privacy.open'))}</span></button>

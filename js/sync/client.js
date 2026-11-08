@@ -7,6 +7,7 @@
 
 import * as S from '../store.js';
 import * as gis from '../auth/gis.js';
+import { bootAuthDecision, clearMarker, readMarker, writeMarker } from '../auth/session.js';
 import { call } from './api.js';
 import { EXEC_URL, WEB_CLIENT_ID } from './config.js';
 import { createEngine } from './engine.js';
@@ -46,6 +47,7 @@ function onSignedIn(user) {
     return;
   }
   S.setSyncState({ email: user.email });
+  writeMarker(user.email);   // non-secret {email, signedInAt}: lets a refresh re-auth silently
   // Background only: UI is already rendered. Sync op returns the role; whoami only if still unknown.
   engine.run().then(() => { if (!getRole()) refreshRole(); });
 }
@@ -53,19 +55,37 @@ function onSignedIn(user) {
 let confirmSwitch = () => true;
 export function setSwitchConfirm(fn) { confirmSwitch = fn; }
 
+/** Sign out: drop the in-memory token + marker, stop sync. Local data stays;
+    cloud data stays (that is "delete my cloud data"). The sign-in gate does
+    not come back on every open (welcome dismissed). */
 export function signOut() {
   gis.signOut();
   role = null;
+  clearMarker();
   S.setSyncState({ email: undefined });
+  S.setWelcomeDismissed(true);
   engine.signedOut();
 }
 
-/** Was signed in before → silent re-prompt (only then may GIS load at boot). */
-export function wasSignedIn() { return !!S.getSyncState().email; }
+/** Email this device was last signed in as (marker, or legacy sync state). */
+export function lastEmail() { return readMarker()?.email || S.getSyncState().email || ''; }
 
-export async function trySilent() {
-  if (!configured || !wasSignedIn() || !navigator.onLine) return false;
-  try { return await gis.silentSignIn(); } catch { return false; }
+/** Was signed in before → silent re-auth (only then may GIS load at boot). */
+export function wasSignedIn() { return !!lastEmail(); }
+
+let silentTry = null;
+/** marker + online → Google token refresh with prompt:'none' (no popup).
+    Offline or no marker → no attempt. Failure keeps the app local + usable. */
+export function trySilent() {
+  const email = lastEmail();
+  const decision = bootAuthDecision({ configured, marker: email ? { email } : null, online: navigator.onLine !== false });
+  if (decision !== 'silent' || gis.getToken()) return Promise.resolve(!!gis.getToken());
+  if (silentTry) return silentTry;
+  const whoami = raw => call('whoami', {}, { idToken: raw }).then(me => { setRole(me); return me; });
+  silentTry = gis.silentTokenSignIn(whoami, { hint: email })
+    .then(() => true, () => false)
+    .finally(() => { silentTry = null; engine.publish(); });
+  return silentTry;
 }
 
 let started = false;

@@ -173,3 +173,30 @@ export async function popupSignIn(whoami) {
   notify();
   return currentUser();
 }
+
+/**
+ * Stay signed in after a refresh: ask Google for a fresh access token with
+ * prompt:'none' (no popup, no click). Works only while the user still has a
+ * Google session and consent for this app in this browser; blocked
+ * third-party cookies (e.g. iPhone Safari) can make it fail, then the caller
+ * shows "Sign in again". Token kept in memory only, like popupSignIn.
+ */
+export async function silentTokenSignIn(whoami, { hint = '', timeoutMs = 10000 } = {}) {
+  if (!WEB_CLIENT_ID) throw new Error('not_configured');
+  if (getToken()) return currentUser();
+  if (!globalThis.google?.accounts?.oauth2) await loadScript();
+  const resp = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('silent_timeout')), timeoutMs);
+    const ok = r => { clearTimeout(timer); resolve(r); };
+    const bad = e => { clearTimeout(timer); reject(e); };
+    const client = makeTokenClient(ok, bad);
+    client.requestAccessToken(hint ? { prompt: 'none', login_hint: hint } : { prompt: 'none' });
+  });
+  const raw = 'at:' + resp.access_token;
+  const me = await whoami(raw);
+  if (!me || !me.email) throw new Error('whoami_failed');
+  token = raw;
+  claims = accessClaims(resp, me.email);
+  notify();
+  return currentUser();
+}
