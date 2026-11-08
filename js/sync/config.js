@@ -6,7 +6,7 @@
    =================================================================== */
 
 export const EXEC_URL = 'https://script.google.com/macros/s/AKfycbz0FySU8pF7MQw6COy7hl1WFzOJjNUn3sde_RcOGaTA59AenERBVVBMEasEm43Yl7Kt/exec';        // Apps Script web app /exec URL (T053b)
-export const WEB_CLIENT_ID = '564537014478-ahov3b2rrd7lnsgpmsf0bpii1gol6pej.apps.googleusercontent.com';   // OAuth Web client ID (public)
+export const WEB_CLIENT_ID = '953977081189-km8fo4m9pnelre5kvifbca71dnplunt9.apps.googleusercontent.com';   // OAuth Web client ID (public)
 
 export const BATCH_MAX_RECORDS = 200;
 export const BATCH_MAX_BYTES = 400 * 1024;
