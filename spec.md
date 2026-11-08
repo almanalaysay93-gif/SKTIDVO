@@ -115,6 +115,7 @@ Framework rewrite · build step · own server (Apps Script only) · Sheets API f
 | FR028 | Sync status (icon + text) in Settings and header: off / pending n / synced hh:mm / error. | US009 |
 | FR029 | Apps Script: verify token, authorize, validate payload schema/size, rate limit per email, LockService around writes, JSON responses with error codes. | US009 |
 | FR031 | Clinician edit: `op:'clinicianEdit'` (server-verified share@spmcdvo.net only, target patient email) writes lab/limit values + status; stored `approved` with `approvedBy` because the approver made it; audited. | US010 |
+| FR032 | Optional sign-in page (progress-only addition 2026-11-08, user request): full-screen welcome shown on first launch and whenever signed out and not dismissed; seal, value line, "Sign in with Google to save your data with SKTI" (GIS popup, loaded on tap), "Continue without signing in — data stays only on this phone", privacy link, language switch; offline → "Sign-in needs internet". After sign-in → consent → Today. Reachable from header badge and Settings → Account. Signed-out users see a persistent note on Today/Settings. Nothing is sent without sign-in + consent. | US008 |
 | FR030 | Repo `apps-script/Code.gs`, `apps-script/appsscript.json`, `apps-script/README.md` with exact deploy + OAuth setup steps. | US012 |
 
 ### Non-functional
@@ -167,3 +168,4 @@ Fixed internal defaults (user: "should be automatic"; no user-facing settings): 
 - Rev 3 (2026-11-08): F-SYNC-01 added: US008–US012, FR015–FR030, NFR007–NFR010, A018–A032, OQ-10 (resolved) + OQ-11–OQ-15; PIN replaced by server-verified login. Web-first: FR010/A032/OQ-13 moved to Phase 2; OQ-10 resolved (developer co-owner keeps access, disclosed).
 - Rev 3.1 (2026-11-08): PR023 inventory approval wording; PR026 US010 + FR031 clinicianEdit + A036; PR028 A033–A035; PR033 withdrawal rule + A037.
 - Rev 3.4 (2026-11-08): OQ-11/12/14/15 resolved; FR014 reminder only when not signed in; FR023 sheet-edit trust; FR025 legacy reset; A038, A039; fixed internal defaults.
+- Rev 3.5 (2026-11-08, progress-only): FR032 optional sign-in page + local-only note (user request via coordinator); no principle change.

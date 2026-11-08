@@ -45,3 +45,7 @@ Consumer account limits, from https://developers.google.com/apps-script/guides/s
 Design to stay under these: one tokeninfo call per token (cached until the token's `exp`), and one request per sync step.
 
 Note: setup() deletes all existing triggers of this script project before creating dailyJob and onSheetEdit; re-running it is safe.
+
+
+## Changes after first deploy (stage 3)
+New ops `whoami`, `patientRecords` (clinician) and a server-side consent gate (`no_consent` for push/pull). Redeploy: Manage deployments → Edit → New version (keeps the /exec URL).
