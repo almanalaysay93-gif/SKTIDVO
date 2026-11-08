@@ -507,6 +507,27 @@ export function runMathTests() {
       eq(p.evil, undefined, 'unknown key should not survive: ');
     });
 
+    test('import keeps blank diet limits/labs null and strips non-numeric rules', () => {
+      reset();
+      S.importAll({
+        app: 'sktidvo', version: 1, profile: {}, weights: [], intake: [], sessions: [],
+        labs: [{ id: 'a', date: '2026-07-27', values: { potassium: 5.1, sodium: null }, status: 'approved' }],
+        dietLimits: {
+          current: { na: null, k: 2000, p: '', protein: undefined, fluid: 1000 },
+          rules: { na: { base: '"><img src=x onerror=alert(1)>', lab: 'evil', threshold: null, then: 5 }, junk: { base: 1 } }
+        }
+      });
+      const d = S.getDietLimits();
+      eq(d.current.na, null, 'null limit must stay null: ');
+      eq(d.current.p, null, 'blank limit must stay null: ');
+      eq(d.current.k, 2000);
+      eq(S.getLabs()[0].values.sodium, null, 'missing lab must stay null: ');
+      eq(d.rules.na.base, null, 'non-numeric rule dropped: ');
+      eq(d.rules.na.threshold, null);
+      eq(d.rules.na.lab, '', 'unknown lab key dropped: ');
+      eq(d.rules.junk, undefined);
+    });
+
   } finally {
     restore(snap);
   }

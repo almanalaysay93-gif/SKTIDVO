@@ -38,10 +38,14 @@
 import { results, resetResults } from './harness.js';
 import { runMathTests } from './math.test.js';
 import { runCalendarTests } from './calendar.test.js';
+import { runFoodTests } from './food.test.js';
+import { runLimitsTests } from './limits.test.js';
 
 resetResults();
 runMathTests();
 runCalendarTests();
+runFoodTests();
+runLimitsTests();
 
 const failed = results.filter(r => !r.ok);
 

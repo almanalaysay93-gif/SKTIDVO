@@ -7,6 +7,7 @@
 import { t, setLang, getLang, LANGS, langName, glassWord } from './i18n.js';
 import * as S from './store.js';
 import * as Cal from './calendar.js';
+import { initDiet } from './diet-view.js';
 
 /* ---------- tiny helpers ---------- */
 
@@ -62,9 +63,11 @@ function toast(msg, actionLabel, onAction) {
    =================================================================== */
 
 let lastFocused = null;
+let sheetOnClose = null;
 
-function openSheet({ title, body, onMount }) {
+function openSheet({ title, body, onMount, onClose }) {
   closeSheet();
+  sheetOnClose = onClose || null;
   lastFocused = document.activeElement;
 
   const scrim = document.createElement('div');
@@ -101,7 +104,7 @@ function onSheetKey(e) {
   if (e.key === 'Escape') { closeSheet(); return; }
   if (e.key !== 'Tab') return;
   // Keep tab focus inside the dialog.
-  const f = $$('button, input, select, [href], [tabindex]:not([tabindex="-1"])', $('#sheet'))
+  const f = $$('button, input, select, summary, [href], [tabindex]:not([tabindex="-1"])', $('#sheet'))
             .filter(el => !el.disabled && el.offsetParent !== null);
   if (!f.length) return;
   const first = f[0], last = f[f.length - 1];
@@ -110,6 +113,9 @@ function onSheetKey(e) {
 }
 
 function closeSheet() {
+  const cb = sheetOnClose;
+  sheetOnClose = null;
+  cb?.();
   $('#sheet')?.remove();
   $('#scrim')?.remove();
   document.body.style.overflow = '';
@@ -479,7 +485,7 @@ function fluidLine() {
         <span class="stat__val tnum" style="color:${over ? 'var(--danger)' : 'inherit'}">
           ${Math.abs(left)}<small> ${esc(t('common.ml'))}</small>
         </span>
-        <p class="stat__key">${esc(over ? t('fluid.over') : t('fluid.left'))}</p>
+        <p class="stat__key">${over ? icon('alert', 'stat__alert') + ' ' : ''}${esc(over ? t('fluid.over') : t('fluid.left'))}</p>
       </div>
       <div class="stat">
         <span class="stat__val tnum">${S.todayIntakeMl()}<small> ${esc(t('common.ml'))}</small></span>
@@ -782,6 +788,7 @@ function viewToday() {
       ${fluidReminder()}
       ${weightReminder()}
     </div>
+    ${Diet.todayCard()}
     ${nextHdReminder()}
     ${calendarCard()}
     ${trendsSection()}
@@ -1234,6 +1241,8 @@ function viewSettings() {
       <p class="banner">${icon('alert')}<span>${esc(t('cal.warnHealth'))}</span></p>
     </div>
 
+    ${Diet.settingsSection()}
+
     <h2 class="section-title">${esc(t('install.title'))}</h2>
     <div class="card" id="installCard">
       <p class="hint" style="margin-top:0">${esc(t('install.hint'))}</p>
@@ -1249,13 +1258,6 @@ function viewSettings() {
       <p class="banner" id="installDone" hidden>
         ${icon('check-circle')}<span>${esc(t('install.done'))}</span>
       </p>
-    </div>
-
-    <h2 class="section-title">${esc(t('settings.theme'))}</h2>
-    <div class="seg" role="group" aria-label="${esc(t('settings.theme'))}">
-      ${[['auto', 'settings.themeAuto'], ['light', 'settings.themeLight'], ['dark', 'settings.themeDark']]
-        .map(([v, k]) => `<button type="button" data-theme-set="${v}"
-              aria-pressed="${p.theme === v}">${esc(t(k))}</button>`).join('')}
     </div>
 
     <h2 class="section-title">${esc(t('settings.data'))}</h2>
@@ -1485,6 +1487,7 @@ const VIEWS = {
   weight:   { render: viewWeight,   title: 'weight.title'   },
   meds:     { render: viewMeds,     title: 'meds.title'     },
   session:  { render: viewSession,  title: 'session.title'  },
+  diet:     { render: () => Diet.viewDiet(), title: 'diet.title' },
   settings: { render: viewSettings, title: 'settings.title' }
 };
 
@@ -1519,7 +1522,7 @@ function render() {
 }
 
 function onClick(e) {
-  const el = e.target.closest('[data-go],[data-ml],[data-lang],[data-sched],[data-custom-day],[data-theme-set],' +
+  const el = e.target.closest('[data-go],[data-ml],[data-lang],[data-sched],[data-custom-day],' +
     '[data-del-intake],[data-del-weight],[data-del-session],[data-empty-action],' +
     '[data-toggle-med],[data-edit-med],[data-toggle-chk],[data-del-hdbp],[data-cal-nav],' +
     '#btnWeigh,#btnSession,#btnSettings,#btnAddMed,#btnLogHdBp,#pSave,#btnPrint,#btnWipe,' +
@@ -1584,7 +1587,6 @@ function onClick(e) {
     days.has(dow) ? days.delete(dow) : days.add(dow);
     return S.saveProfile({ schedule: 'CUSTOM', customDays: [...days].sort() });
   }
-  if (el.dataset.themeSet)  { applyTheme(el.dataset.themeSet); return S.saveProfile({ theme: el.dataset.themeSet }); }
 
   if (el.dataset.delIntake) {
     const entry = S.getIntake().find(i => i.id === el.dataset.delIntake);
@@ -1633,9 +1635,10 @@ function onClick(e) {
 
 /* ---------- theme ---------- */
 
-function applyTheme(mode) {
-  if (mode === 'auto') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', mode);
+// Light-only theme: any stored profile.theme value is ignored (kept in the
+// profile so old backups still validate).
+function applyTheme() {
+  document.documentElement.removeAttribute('data-theme');
 }
 
 /* ---------- offline banner ---------- */
@@ -1650,6 +1653,10 @@ function wireNetwork() {
   addEventListener('offline', show);
   show();
 }
+
+/* ---------- diet feature (js/diet-view.js) ---------- */
+
+const Diet = initDiet({ $, $$, esc, icon, t, toast, openSheet, closeSheet, readNumber, fmtDate, fmtTime });
 
 /* ---------- boot ---------- */
 

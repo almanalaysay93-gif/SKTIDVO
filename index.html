@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" data-theme-default="auto">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <!-- Never disable zoom: patients enlarge text. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Fluid and weight tracker for haemodialysis patients of the SPMC Kidney and Transplant Institute (SKTI), Davao City. Works offline. All data stays on the phone.">
-<!-- Matches the page background, not a brand bar — there is no header to blend with. -->
-<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0B1A1E" media="(prefers-color-scheme: dark)">
+<!-- Light-only theme: status bar matches the header's top gradient stop. -->
+<meta name="theme-color" content="#F7FBFF">
+<meta name="color-scheme" content="light">
 <title>SKTIDVO — Fluid &amp; Weight Tracker</title>
 
 <link rel="manifest" href="manifest.webmanifest">
@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;500;600;700&display=swap">
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 
 <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -144,9 +144,6 @@
        same rule the old empty gearbar followed — it just now carries the
        building photo instead of blank page background. -->
   <header class="app-header">
-    <img class="app-header__photo" src="assets/skti-building.jpg" alt=""
-         onerror="this.remove()">
-    <div class="app-header__scrim"></div>
     <div class="app-header__row">
       <span class="app-header__badge">
         <img src="assets/logo.png"
@@ -173,7 +170,7 @@
     </noscript>
   </main>
 
-  <!-- ===== Bottom nav: 5 top-level destinations, icon + label ===== -->
+  <!-- ===== Bottom nav: 6 top-level destinations, icon + label ===== -->
   <nav class="nav" aria-label="Main">
     <button type="button" class="nav__item" data-go="today">
       <svg aria-hidden="true"><use href="#i-sun"/></svg><span>Today</span>
@@ -186,6 +183,9 @@
     </button>
     <button type="button" class="nav__item" data-go="meds">
       <svg aria-hidden="true"><use href="#i-pill"/></svg><span>Meds</span>
+    </button>
+    <button type="button" class="nav__item" data-go="diet">
+      <svg aria-hidden="true"><use href="#i-bowl"/></svg><span>Diet</span>
     </button>
     <button type="button" class="nav__item" data-go="session">
       <svg aria-hidden="true"><use href="#i-activity"/></svg><span>Dialysis</span>

@@ -13,7 +13,13 @@ const KEYS = {
   medications: NS + 'medications',
   medLogs:     NS + 'med_logs',
   checklists:  NS + 'checklists',
-  hdBp:        NS + 'hd_bp'
+  hdBp:        NS + 'hd_bp',
+  foodsCustom: NS + 'foods_custom',
+  dietLog:     NS + 'diet_log',
+  foodCache:   NS + 'food_cache',
+  labs:        NS + 'labs',
+  dietLimits:  NS + 'diet_limits',
+  clinician:   NS + 'clinician'   // PIN hash + approver; NOT in backups
 };
 
 const DEFAULT_PROFILE = {
@@ -39,7 +45,10 @@ const DEFAULT_PROFILE = {
 
   // Home scale minus SKTI scale, in kg.
   scaleOffsetKg: 0,
-  scaleCalibratedAt: null
+  scaleCalibratedAt: null,
+
+  // USDA FoodData Central key. DEMO_KEY works but is heavily rate-limited.
+  fdcApiKey: 'DEMO_KEY'
 };
 
 /* ---------- low level ---------- */
@@ -471,6 +480,253 @@ export function restoreHdBp(entry) {
   emit();
 }
 
+/* ===================================================================
+   Diet tracker. Units per 100 g: na/k/p mg, protein g, water g.
+   null = source did not state the value; never read as zero.
+   Labs and limits stay 'pending' until a clinician PIN approves them.
+   =================================================================== */
+
+const NUT = ['na', 'k', 'p', 'protein', 'water'];
+const LIMIT_FIELDS = ['na', 'k', 'p', 'protein', 'fluid'];
+const LAB_FIELDS = ['potassium', 'sodium', 'phosphorus', 'albumin', 'bun', 'creatinine', 'hemoglobin', 'calcium'];
+const FOOD_CACHE_CAP = 200;
+
+function cleanPer100(src) {
+  const out = {};
+  for (const k of NUT) {
+    const v = src && src[k];
+    out[k] = v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Number(v);
+  }
+  return out;
+}
+
+/* ---------- custom foods ---------- */
+
+export function getCustomFoods() {
+  return read(KEYS.foodsCustom, []).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function saveCustomFood({ id, name, per100 }) {
+  const list = read(KEYS.foodsCustom, []);
+  const entry = { id: id || uid(), name: String(name).trim().slice(0, 120), per100: cleanPer100(per100), source: 'custom' };
+  const i = list.findIndex(f => f.id === entry.id);
+  if (i === -1) list.push(entry); else list[i] = entry;
+  write(KEYS.foodsCustom, list);
+  emit();
+  return entry;
+}
+
+export function addCustomFoods(foods) {
+  const list = read(KEYS.foodsCustom, []);
+  for (const f of foods) list.push({ id: uid(), name: String(f.name).slice(0, 120), per100: cleanPer100(f.per100), source: 'custom' });
+  write(KEYS.foodsCustom, list);
+  emit();
+  return foods.length;
+}
+
+export function deleteCustomFood(id) {
+  write(KEYS.foodsCustom, read(KEYS.foodsCustom, []).filter(f => f.id !== id));
+  emit();
+}
+
+/* ---------- diet log ---------- */
+
+export function getDietLog(day = dayKey()) {
+  return read(KEYS.dietLog, []).filter(e => e.day === day).sort((a, b) => b.ts - a.ts);
+}
+
+export function logFood({ name, grams, source, ref, per100 }, when = new Date()) {
+  const list = read(KEYS.dietLog, []);
+  const entry = {
+    id: uid(), day: dayKey(when), ts: when.getTime(),
+    name: String(name).slice(0, 160), grams: Number(grams),
+    source: ['fdc', 'off', 'custom'].includes(source) ? source : 'custom',
+    ref: ref == null ? null : String(ref), per100: cleanPer100(per100)
+  };
+  list.push(entry);
+  write(KEYS.dietLog, list);
+  emit();
+  return entry;
+}
+
+export function deleteFood(id) {
+  write(KEYS.dietLog, read(KEYS.dietLog, []).filter(e => e.id !== id));
+  emit();
+}
+
+export function restoreFood(entry) {
+  const list = read(KEYS.dietLog, []);
+  if (!list.some(e => e.id === entry.id)) list.push(entry);
+  write(KEYS.dietLog, list);
+  emit();
+}
+
+/* ---------- lookup cache (offline) ---------- */
+
+export function getFoodCache() { return read(KEYS.foodCache, []); }
+
+/** Newest first, de-duplicated by source+ref (or name), capped. */
+export function cacheFoods(items) {
+  const keyOf = f => `${f.source}:${f.ref ?? f.name}`;
+  const fresh = items.map(f => ({ name: f.name, source: f.source, ref: f.ref ?? null, per100: cleanPer100(f.per100), ts: Date.now() }));
+  const seen = new Set(fresh.map(keyOf));
+  const rest = getFoodCache().filter(f => !seen.has(keyOf(f)));
+  write(KEYS.foodCache, [...fresh, ...rest].slice(0, FOOD_CACHE_CAP));
+}
+
+export function searchFoodCache(q) {
+  const words = String(q).toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  return getFoodCache().filter(f => words.every(w => f.name.toLowerCase().includes(w))).slice(0, 15);
+}
+
+export function cachedBarcode(code) {
+  return getFoodCache().find(f => f.source === 'off' && f.ref === code) || null;
+}
+
+/* ---------- labs ---------- */
+
+export function getLabs() {
+  return read(KEYS.labs, []).sort((a, b) => String(b.date).localeCompare(String(a.date)) || b.ts - a.ts);
+}
+
+export function addLab({ date, values, units, origin }) {
+  const list = read(KEYS.labs, []);
+  const entry = { id: uid(), ts: Date.now(), date, values, units: units || {},
+                  status: 'pending', approvedBy: null, approvedAt: null,
+                  origin: origin === 'manual' ? 'manual' : 'ocr' };
+  list.push(entry);
+  write(KEYS.labs, list);
+  emit();
+  return entry;
+}
+
+/** status: 'approved' | 'rejected'. Caller must have verified the PIN. */
+export function decideLab(id, status, approvedBy) {
+  const list = read(KEYS.labs, []).map(l => l.id === id
+    ? { ...l, status, approvedBy: String(approvedBy || ''), approvedAt: Date.now() } : l);
+  write(KEYS.labs, list);
+  emit();
+}
+
+export function deleteLab(id) {
+  write(KEYS.labs, read(KEYS.labs, []).filter(l => l.id !== id));
+  emit();
+}
+
+/* ---------- limits ---------- */
+
+export function getDietLimits() {
+  return { current: null, pending: null, rules: {}, ...read(KEYS.dietLimits, {}) };
+}
+
+/** Only these numbers may drive the diet bars. */
+export function approvedLimits() {
+  return getDietLimits().current;
+}
+
+export function saveDietRules(rules) {
+  write(KEYS.dietLimits, { ...getDietLimits(), rules });
+  emit();
+}
+
+export function setPendingLimits(limits) {
+  const pending = { computedAt: Date.now(), labId: limits.labId ?? null };
+  for (const k of LIMIT_FIELDS) pending[k] = Number.isFinite(limits[k]) ? limits[k] : null;
+  write(KEYS.dietLimits, { ...getDietLimits(), pending });
+  emit();
+}
+
+/** approve=true promotes pending to current; false discards it. */
+export function decidePendingLimits(approve, approvedBy) {
+  const d = getDietLimits();
+  if (!d.pending) return;
+  const next = { ...d, pending: null };
+  if (approve) next.current = { ...d.pending, approvedBy: String(approvedBy || ''), approvedAt: Date.now() };
+  write(KEYS.dietLimits, next);
+  emit();
+}
+
+/* ---------- clinician PIN (hash only, never the PIN) ---------- */
+
+export function getClinician() { return read(KEYS.clinician, null); }
+
+export function setClinician({ salt, hash, name }) {
+  write(KEYS.clinician, { salt, hash, name: String(name || '').slice(0, 80), setAt: Date.now() });
+  emit();
+}
+
+/* ---------- restore cleaners ---------- */
+
+const isDay = d => /^\d{4}-\d{2}-\d{2}$/.test(d);
+/* null/blank stays null (Number(null) is 0, which would invent a limit). */
+const numOrNull = v => (v === null || v === undefined || v === '' ? null : num(v));
+
+function cleanCustomFoods(list) {
+  return (Array.isArray(list) ? list : [])
+    .map(f => ({ id: str(f.id) || uid(), name: str(f.name).slice(0, 120), per100: cleanPer100(f.per100), source: 'custom' }))
+    .filter(f => f.name);
+}
+
+function cleanDietLog(list) {
+  return (Array.isArray(list) ? list : [])
+    .map(e => ({ id: str(e.id) || uid(), day: str(e.day), ts: num(e.ts, 0), name: str(e.name).slice(0, 160),
+                 grams: num(e.grams), source: ['fdc', 'off', 'custom'].includes(e.source) ? e.source : 'custom',
+                 ref: e.ref == null ? null : String(e.ref), per100: cleanPer100(e.per100) }))
+    .filter(e => isDay(e.day) && e.name && e.grams > 0 && e.grams <= 5000);
+}
+
+function cleanFoodCache(list) {
+  return (Array.isArray(list) ? list : [])
+    .map(f => ({ name: str(f.name).slice(0, 160), source: ['fdc', 'off'].includes(f.source) ? f.source : 'fdc',
+                 ref: f.ref == null ? null : String(f.ref), per100: cleanPer100(f.per100), ts: num(f.ts, 0) }))
+    .filter(f => f.name).slice(0, FOOD_CACHE_CAP);
+}
+
+function cleanLabs(list) {
+  return (Array.isArray(list) ? list : []).map(l => {
+    const values = {};
+    for (const k of LAB_FIELDS) values[k] = l.values ? numOrNull(l.values[k]) : null;
+    return { id: str(l.id) || uid(), ts: num(l.ts, 0), date: str(l.date), values,
+             units: l.units && typeof l.units === 'object' ? l.units : {},
+             status: ['pending', 'approved', 'rejected'].includes(l.status) ? l.status : 'pending',
+             approvedBy: l.approvedBy ? str(l.approvedBy) : null, approvedAt: num(l.approvedAt),
+             origin: l.origin === 'manual' ? 'manual' : 'ocr' };
+  }).filter(l => isDay(l.date));
+}
+
+function cleanLimitSet(src, extra) {
+  if (!src || typeof src !== 'object') return null;
+  const out = {};
+  for (const k of LIMIT_FIELDS) out[k] = numOrNull(src[k]);
+  for (const k of extra) out[k] = src[k] ?? null;
+  return out;
+}
+
+function cleanDietLimits(d) {
+  const src = d && typeof d === 'object' ? d : {};
+  return {
+    current: cleanLimitSet(src.current, ['approvedBy', 'approvedAt', 'computedAt', 'labId']),
+    pending: cleanLimitSet(src.pending, ['computedAt', 'labId']),
+    rules:   cleanRules(src.rules)
+  };
+}
+
+/* Rules arrive from a backup file: keep only known keys, numbers and a
+   known lab key, so nothing else reaches the rules form. */
+function cleanRules(src) {
+  const r = src && typeof src === 'object' ? src : {};
+  const out = {};
+  for (const k of ['na', 'k', 'p']) {
+    const x = r[k] && typeof r[k] === 'object' ? r[k] : null;
+    if (!x) continue;
+    out[k] = { base: numOrNull(x.base), lab: LAB_FIELDS.includes(x.lab) ? x.lab : '',
+               threshold: numOrNull(x.threshold), then: numOrNull(x.then) };
+  }
+  if (r.protein && typeof r.protein === 'object') out.protein = { gPerKg: numOrNull(r.protein.gPerKg) };
+  return out;
+}
+
 /* ---------- export ---------- */
 
 export function buildSummary() {
@@ -516,7 +772,12 @@ export function exportAll() {
     sessions: getSessions(),
     medications: getMedications(),
     medLogs: getMedLogs(),
-    hdBp: getHdBp()
+    hdBp: getHdBp(),
+    foodsCustom: getCustomFoods(),
+    dietLog: read(KEYS.dietLog, []),
+    foodCache: getFoodCache(),
+    labs: getLabs(),
+    dietLimits: getDietLimits()
   };
 }
 
@@ -583,7 +844,8 @@ function cleanProfile(p) {
     theme:            ['auto', 'light', 'dark'].includes(src.theme) ? src.theme : 'auto',
     setupDone:        !!src.setupDone,
     scaleOffsetKg:    num(src.scaleOffsetKg, 0),
-    scaleCalibratedAt: num(src.scaleCalibratedAt)
+    scaleCalibratedAt: num(src.scaleCalibratedAt),
+    fdcApiKey:        str(src.fdcApiKey).trim() || 'DEMO_KEY'
   };
 }
 
@@ -602,7 +864,12 @@ export function importAll(data) {
     sessions:    cleanSessions(data.sessions),
     medications: Array.isArray(data.medications) ? data.medications : DEFAULT_MEDS,
     medLogs:     (data.medLogs && typeof data.medLogs === 'object') ? data.medLogs : {},
-    hdBp:        cleanHdBp(data.hdBp)
+    hdBp:        cleanHdBp(data.hdBp),
+    foodsCustom: cleanCustomFoods(data.foodsCustom),
+    dietLog:     cleanDietLog(data.dietLog),
+    foodCache:   cleanFoodCache(data.foodCache),
+    labs:        cleanLabs(data.labs),
+    dietLimits:  cleanDietLimits(data.dietLimits)
   };
   write(KEYS.profile,     next.profile);
   write(KEYS.weights,     next.weights);
@@ -611,13 +878,20 @@ export function importAll(data) {
   write(KEYS.medications, next.medications);
   write(KEYS.medLogs,     next.medLogs);
   write(KEYS.hdBp,        next.hdBp);
+  write(KEYS.foodsCustom, next.foodsCustom);
+  write(KEYS.dietLog,     next.dietLog);
+  write(KEYS.foodCache,   next.foodCache);
+  write(KEYS.labs,        next.labs);
+  write(KEYS.dietLimits,  next.dietLimits);
   emit();
   return {
     weights: next.weights.length,
     intake: next.intake.length,
     sessions: next.sessions.length,
     medications: next.medications.length,
-    hdBp: next.hdBp.length
+    hdBp: next.hdBp.length,
+    dietLog: next.dietLog.length,
+    labs: next.labs.length
   };
 }
 

@@ -5,7 +5,7 @@
    Bump CACHE on every release or patients keep the old shell.
    =================================================================== */
 
-const CACHE = 'sktidvo-v5';
+const CACHE = 'sktidvo-v7';
 
 const SHELL = [
   './',
@@ -15,12 +15,14 @@ const SHELL = [
   './js/store.js',
   './js/i18n.js',
   './js/calendar.js',
+  './js/food.js',
+  './js/limits.js',
+  './js/diet-view.js',
   './manifest.webmanifest',
   './assets/icon.svg',
   './assets/icon-512.png',
   './assets/icon-maskable-512.png',
-  './assets/logo.png',
-  './assets/skti-building.jpg'
+  './assets/logo.png'
 ];
 
 self.addEventListener('install', e => {
