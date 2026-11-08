@@ -44,10 +44,10 @@ export function viewMeds() {
               ${m.notes ? `<div class="med-row__notes">${esc(m.notes)}</div>` : ''}
               ${m.holdOnDialysis ? `<span class="med-tag med-tag--hold">${esc(t('meds.holdAlert'))}</span>` : ''}
             </div>
-            <button type="button" class="med-check-btn" data-toggle-med="${m.id}" aria-label="Toggle taken">
+            <button type="button" class="med-check-btn" data-toggle-med="${esc(m.id)}" aria-label="Toggle taken">
               ${taken ? icon('check') : ''}
             </button>
-            <button type="button" class="row__btn" data-edit-med="${m.id}" aria-label="Edit medication">
+            <button type="button" class="row__btn" data-edit-med="${esc(m.id)}" aria-label="Edit medication">
               ${icon('edit')}
             </button>
           </div>`;

@@ -24,7 +24,7 @@ export function hdBpCard() {
           </span>
           <span class="row__sub">${esc(fmtTime(r.ts))}${r.note ? ` · ${esc(r.note)}` : ''}</span>
         </span>
-        <button type="button" class="row__btn" data-del-hdbp="${r.id}"
+        <button type="button" class="row__btn" data-del-hdbp="${esc(r.id)}"
                 aria-label="${esc(t('common.delete'))} ${r.sys}/${r.dia}">${icon('trash')}</button>
       </li>`;
     }).join('')}</ul>`
@@ -59,7 +59,7 @@ export function viewSession() {
     <h2 class="section-title">${esc(t('checklist.title'))}</h2>
     <div class="card">
       ${checklist.map(item => `
-        <div class="chk-item ${item.done ? 'chk-item--done' : ''}" data-toggle-chk="${item.id}">
+        <div class="chk-item ${item.done ? 'chk-item--done' : ''}" data-toggle-chk="${esc(item.id)}">
           <div class="chk-box">${item.done ? icon('check') : ''}</div>
           <span>${esc(item.text)}</span>
         </div>
@@ -85,7 +85,7 @@ export function viewSession() {
                 s.bpSys ? ` · BP ${s.bpSys}/${s.bpDia ?? '—'}` : ''}
             </span>
           </span>
-          <button type="button" class="row__btn" data-del-session="${s.id}"
+          <button type="button" class="row__btn" data-del-session="${esc(s.id)}"
                   aria-label="${esc(t('common.delete'))} ${esc(fmtDate(s.ts))}">${icon('trash')}</button>
         </li>`).join('')}</ul>`
         : `<div class="empty">${icon('activity')}<p>${esc(t('session.empty'))}</p></div>`}

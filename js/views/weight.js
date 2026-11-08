@@ -35,7 +35,7 @@ export function viewWeight() {
             ${diff != null ? `<span class="row__sub tnum">${diff > 0 ? '+' : ''}${nf(diff, 1)} kg vs dry weight</span>` : ''}
           </span>
           <span class="row__val tnum">${nf(w.kg, 1)} ${esc(t('common.kg'))}</span>
-          <button type="button" class="row__btn" data-del-weight="${w.id}"
+          <button type="button" class="row__btn" data-del-weight="${esc(w.id)}"
                   aria-label="${esc(t('common.delete'))} ${esc(fmtDate(w.ts))}">${icon('trash')}</button>
         </li>`; }).join('')}</ul>`
         : `<div class="empty">${icon('scale')}<p>${esc(t('weight.empty'))}</p></div>`}

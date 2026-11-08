@@ -68,7 +68,7 @@ export function viewFluid() {
             <span class="row__sub">${esc(fmtTime(i.ts))}</span>
           </span>
           <span class="row__val tnum">${i.ml} ${esc(t('common.ml'))}</span>
-          <button type="button" class="row__btn" data-del-intake="${i.id}"
+          <button type="button" class="row__btn" data-del-intake="${esc(i.id)}"
                   aria-label="${esc(t('common.delete'))} ${i.ml} ${esc(t('common.ml'))}">
             ${icon('trash')}
           </button>
