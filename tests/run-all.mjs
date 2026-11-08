@@ -4,7 +4,7 @@ globalThis.navigator ??= {};
 const root = new URL('./', import.meta.url).href;
 const h = await import(new URL('harness.js', root).href);
 h.resetResults();
-for (const [f, fn] of [['math.test.js','runMathTests'],['calendar.test.js','runCalendarTests'],['food.test.js','runFoodTests'],['limits.test.js','runLimitsTests'],['backup.test.js','runBackupTests'],['today.test.js','runTodayTests'],['sw.test.js','runSwTests'],['sync-queue.test.js','runSyncQueueTests'],['sync-merge.test.js','runSyncMergeTests'],['migrate-v2.test.js','runMigrateV2Tests']]) {
+for (const [f, fn] of [['math.test.js','runMathTests'],['calendar.test.js','runCalendarTests'],['food.test.js','runFoodTests'],['limits.test.js','runLimitsTests'],['backup.test.js','runBackupTests'],['today.test.js','runTodayTests'],['sw.test.js','runSwTests'],['sync-queue.test.js','runSyncQueueTests'],['sync-merge.test.js','runSyncMergeTests'],['migrate-v2.test.js','runMigrateV2Tests'],['apps-script.test.js','runAppsScriptTests']]) {
   try { const m = await import(new URL(f, root).href); await m[fn](); } catch (e) { console.log('SUITE ERROR', f, e.message); }
 }
 const failed = h.results.filter(r => !r.ok);
