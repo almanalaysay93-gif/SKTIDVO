@@ -1,0 +1,210 @@
+{
+ "app": "sktidvo",
+ "version": 1,
+ "exportedAt": "2026-11-08T03:42:37.032Z",
+ "profile": {
+  "name": "Fixture Patient",
+  "bookletNo": "",
+  "doctorName": "",
+  "nursePhone": "",
+  "emergencyPhone": "",
+  "dryWeightKg": 60,
+  "allowanceMl": 1000,
+  "idwgLimitKg": 2,
+  "schedule": "MWF",
+  "customDays": [
+   1,
+   3,
+   5
+  ],
+  "shiftName": "1st Shift",
+  "sessionTime": "06:00",
+  "stationNo": "",
+  "philHealthTarget": 156,
+  "philHealthUsed": 0,
+  "weighTime": "06:30",
+  "lang": "en",
+  "theme": "auto",
+  "setupDone": true,
+  "scaleOffsetKg": 0,
+  "scaleCalibratedAt": null,
+  "fdcApiKey": "DEMO_KEY"
+ },
+ "weights": [
+  {
+   "id": "mw7adzolc3zre",
+   "day": "2026-11-08",
+   "ts": 1794109357029,
+   "kg": 60
+  },
+  {
+   "id": "mw7adzoluvqug",
+   "day": "2026-11-07",
+   "ts": 1794022957029,
+   "kg": 60.2
+  },
+  {
+   "id": "mw7adzol1jqnv",
+   "day": "2026-11-06",
+   "ts": 1793936557029,
+   "kg": 60.4
+  },
+  {
+   "id": "mw7adzol862tz",
+   "day": "2026-11-05",
+   "ts": 1793850157029,
+   "kg": 60.6
+  },
+  {
+   "id": "mw7adzolsx6q0",
+   "day": "2026-11-04",
+   "ts": 1793763757029,
+   "kg": 60.8
+  },
+  {
+   "id": "mw7adzoldehdl",
+   "day": "2026-11-03",
+   "ts": 1793677357029,
+   "kg": 61
+  },
+  {
+   "id": "mw7adzoly27ra",
+   "day": "2026-11-02",
+   "ts": 1793590957028,
+   "kg": 61.2
+  }
+ ],
+ "intake": [
+  {
+   "id": "mw7adzole9kfo",
+   "day": "2026-11-08",
+   "ts": 1794109357029,
+   "ml": 250,
+   "labelKey": "fluid.water"
+  },
+  {
+   "id": "mw7adzol7tecx",
+   "day": "2026-11-08",
+   "ts": 1794109357029,
+   "ml": 150,
+   "labelKey": "fluid.coffee"
+  }
+ ],
+ "sessions": [
+  {
+   "id": "mw7adzolkk325",
+   "day": "2026-11-06",
+   "ts": 1793936557029,
+   "preKg": 62.1,
+   "postKg": 60.2,
+   "ufL": 1.9,
+   "bpSys": 140,
+   "bpDia": 85
+  }
+ ],
+ "medications": [
+  {
+   "id": "med-1",
+   "name": "Calcium Carbonate (Phosphate Binder)",
+   "dose": "500mg (1 tablet)",
+   "timing": "meals",
+   "notes": "Take with first bite of meal to bind phosphate.",
+   "holdOnDialysis": false,
+   "active": true
+  },
+  {
+   "id": "med-2",
+   "name": "Amlodipine (Blood Pressure)",
+   "dose": "5mg (1 tablet)",
+   "timing": "morning",
+   "notes": "Blood pressure medication. Ask doctor if you should hold before session.",
+   "holdOnDialysis": true,
+   "active": true
+  },
+  {
+   "id": "med-3",
+   "name": "Epoetin Alfa (ESA Injection)",
+   "dose": "4000 IU",
+   "timing": "dialysis_days",
+   "notes": "Injection for blood count. Given after dialysis session.",
+   "holdOnDialysis": false,
+   "active": true
+  },
+  {
+   "id": "med-4",
+   "name": "Ferrous Sulfate (Iron)",
+   "dose": "320mg",
+   "timing": "bedtime",
+   "notes": "Iron supplement. Take at bedtime on empty stomach.",
+   "holdOnDialysis": false,
+   "active": true
+  }
+ ],
+ "medLogs": {},
+ "hdBp": [
+  {
+   "id": "mw7adzola3tjz",
+   "day": "2026-11-08",
+   "ts": 1794109357029,
+   "sys": 130,
+   "dia": 80,
+   "pulse": 72,
+   "note": "ok"
+  }
+ ],
+ "foodsCustom": [
+  {
+   "id": "mw7adzollbx9j",
+   "name": "Fixture rice",
+   "per100": {
+    "na": 1,
+    "k": 35,
+    "p": 43,
+    "protein": 2.7,
+    "water": null
+   },
+   "source": "custom"
+  }
+ ],
+ "dietLog": [
+  {
+   "id": "mw7adzolp8qie",
+   "day": "2026-11-08",
+   "ts": 1794109357029,
+   "name": "Fixture rice",
+   "grams": 150,
+   "source": "custom",
+   "ref": null,
+   "per100": {
+    "na": 1,
+    "k": 35,
+    "p": 43,
+    "protein": 2.7,
+    "water": null
+   }
+  }
+ ],
+ "foodCache": [],
+ "labs": [
+  {
+   "id": "mw7adzolfxag2",
+   "ts": 1794109357029,
+   "date": "2026-11-08",
+   "values": {
+    "k": 5.1,
+    "na": 138,
+    "p": 1.5
+   },
+   "units": {},
+   "status": "approved",
+   "approvedBy": "fixture",
+   "approvedAt": 1794109357029,
+   "origin": "manual"
+  }
+ ],
+ "dietLimits": {
+  "current": null,
+  "pending": null,
+  "rules": {}
+ }
+}
