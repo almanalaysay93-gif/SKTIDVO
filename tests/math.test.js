@@ -518,9 +518,10 @@ export function runMathTests() {
         }
       });
       const d = S.getDietLimits();
-      eq(d.current.na, null, 'null limit must stay null: ');
-      eq(d.current.p, null, 'blank limit must stay null: ');
-      eq(d.current.k, 2000);
+      eq(d.current, null, 'FR008: restored limits are never approved: ');
+      eq(d.pending.na, null, 'null limit must stay null: ');
+      eq(d.pending.p, null, 'blank limit must stay null: ');
+      eq(d.pending.k, 2000);
       eq(S.getLabs()[0].values.sodium, null, 'missing lab must stay null: ');
       eq(d.rules.na.base, null, 'non-numeric rule dropped: ');
       eq(d.rules.na.threshold, null);

@@ -712,6 +712,42 @@ function cleanDietLimits(d) {
   };
 }
 
+/* FR008 / OQ-03: a restored file must never carry approval with it.
+   Every lab goes back to 'pending' and any approved limit set becomes the
+   pending set (an already-pending set wins), so the clinic re-approves. */
+export function resetApprovals(labs, limits) {
+  const outLabs = labs.map(l => ({ ...l, status: 'pending', approvedBy: null, approvedAt: null }));
+  const demoted = limits.current
+    ? (({ approvedBy, approvedAt, ...rest }) => rest)(limits.current) : null;
+  return { labs: outLabs, limits: { ...limits, current: null, pending: limits.pending || demoted } };
+}
+
+
+function cleanMedications(list) {
+  if (!Array.isArray(list)) return DEFAULT_MEDS;
+  return list.filter(m => m && typeof m === 'object').map(m => ({
+    ...m,
+    id: str(m.id).slice(0, 64) || uid(),
+    name: str(m.name).slice(0, 120),
+    dose: str(m.dose).slice(0, 80),
+    timing: str(m.timing).slice(0, 40),
+    notes: str(m.notes).slice(0, 300),
+    holdOnDialysis: !!m.holdOnDialysis,
+    active: m.active !== false
+  })).filter(m => m.name);
+}
+
+function cleanMedLogs(src) {
+  const out = {};
+  if (!src || typeof src !== 'object' || Array.isArray(src)) return out;
+  for (const [day, slots] of Object.entries(src)) {
+    if (!isDay(day) || !slots || typeof slots !== 'object') continue;
+    out[day] = {};
+    for (const [k, v] of Object.entries(slots)) out[day][String(k).slice(0, 100)] = v === true;
+  }
+  return out;
+}
+
 /* Rules arrive from a backup file: keep only known keys, numbers and a
    known lab key, so nothing else reaches the rules form. */
 function cleanRules(src) {
@@ -862,8 +898,8 @@ export function importAll(data) {
     weights:     cleanWeights(data.weights),
     intake:      cleanIntake(data.intake),
     sessions:    cleanSessions(data.sessions),
-    medications: Array.isArray(data.medications) ? data.medications : DEFAULT_MEDS,
-    medLogs:     (data.medLogs && typeof data.medLogs === 'object') ? data.medLogs : {},
+    medications: cleanMedications(data.medications),
+    medLogs:     cleanMedLogs(data.medLogs),
     hdBp:        cleanHdBp(data.hdBp),
     foodsCustom: cleanCustomFoods(data.foodsCustom),
     dietLog:     cleanDietLog(data.dietLog),
@@ -871,6 +907,9 @@ export function importAll(data) {
     labs:        cleanLabs(data.labs),
     dietLimits:  cleanDietLimits(data.dietLimits)
   };
+  const reset = resetApprovals(next.labs, next.dietLimits);
+  next.labs = reset.labs;
+  next.dietLimits = reset.limits;
   write(KEYS.profile,     next.profile);
   write(KEYS.weights,     next.weights);
   write(KEYS.intake,      next.intake);

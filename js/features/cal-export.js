@@ -6,6 +6,12 @@ import { downloadFile } from './backup.js';
 import { t } from '../i18n.js';
 import { toast } from '../ui/toast.js';
 
+/* ---------- Google Calendar ----------
+   An .ics file rather than the Calendar API: no OAuth, no Cloud
+   project, and nothing leaves the phone until the patient imports it.
+   The VALARM in these events is also the only reminder this app can
+   produce that survives the app being closed. */
+
 export function calFile(name, text) {
   downloadFile(name, 'text/calendar;charset=utf-8', text);
   toast(t('cal.downloaded'));

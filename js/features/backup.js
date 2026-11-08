@@ -23,13 +23,11 @@ export function exportBackup() {
   toast(t('data.exported'));
 }
 
-/* ---------- Google Calendar ----------
-   An .ics file rather than the Calendar API: no OAuth, no Cloud
-   project, and nothing leaves the phone until the patient imports it.
-   The VALARM in these events is also the only reminder this app can
-   produce that survives the app being closed. */
+/* Backups are a few hundred KB at most; anything far bigger is not ours. */
+export const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 
 export function importBackup(file) {
+  if (!file || file.size > MAX_BACKUP_BYTES) { toast(t('data.badFile')); return; }
   const reader = new FileReader();
   reader.onload = () => {
     let parsed;
