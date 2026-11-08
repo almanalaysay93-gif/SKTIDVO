@@ -276,7 +276,7 @@ function consentGiven(rows, email) {
 
 var VIEW_TZ_OFFSET_MS = 8 * 3600000;
 var VIEW_META = ['id', 'updatedAt', 'deviceId', 'deleted', 'syncedAt', 'neverSynced', 'serverSeq', 'serverUpdatedAt'];
-var NUT_LABELS = { na: 'Sodium mg', k: 'Potassium mg', p: 'Phosphorus mg', protein: 'Protein g', water: 'Water g' };
+var NUT_LABELS = { na: 'Sodium mg', k: 'Potassium mg', p: 'Phosphorus mg', protein: 'Protein g', water: 'Water g', kcal: 'Calories kcal' };
 
 function pad2_(n) { return (n < 10 ? '0' : '') + n; }
 
@@ -323,7 +323,7 @@ var VIEWS = {
   medLogs: { tab: 'Med log', cols: [['Medicine slot', 'slot'], ['Taken', 'taken']] },
   checklist: { tab: 'Checklist log', cols: [['Item', 'text'], ['Done', 'done']] },
   hdBp: { tab: 'BP', cols: [['Sys', 'sys'], ['Dia', 'dia'], ['Pulse', 'pulse'], ['Note', 'note']] },
-  dietLog: { tab: 'Diet', cols: [['Food', 'name'], ['Grams', 'grams'], ['Sodium mg', 'na'], ['Potassium mg', 'k'], ['Phosphorus mg', 'p'], ['Protein g', 'protein'], ['Water g', 'water'], ['Source', 'source']] },
+  dietLog: { tab: 'Diet', cols: [['Food', 'name'], ['Grams', 'grams'], ['Sodium mg', 'na'], ['Potassium mg', 'k'], ['Phosphorus mg', 'p'], ['Protein g', 'protein'], ['Water g', 'water'], ['Calories (kcal)', 'kcal'], ['Source', 'source']] },
   customFoods: { tab: 'Custom foods', cols: [['Food', 'name'], ['Sodium mg/100g', 'na'], ['Potassium mg/100g', 'k'], ['Phosphorus mg/100g', 'p'], ['Protein g/100g', 'protein'], ['Water g/100g', 'water'], ['Source', 'source']] },
   labs: { tab: 'Lab results', cols: [['Lab date', 'date'], ['Values', 'values'], ['Status', 'status'], ['Approved by', 'approvedBy'], ['Approved at', 'approvedAt']] },
   limits: { tab: 'Diet limits', cols: [['Current (approved)', 'current'], ['Pending', 'pending'], ['Approved by', 'approvedBy']] },

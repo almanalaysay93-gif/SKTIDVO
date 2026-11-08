@@ -190,9 +190,12 @@ export function runAppsScriptTests() {
     eq(l[4], '2026-07-20'); eq(l[5], 'K: 5.1 mmol/L'); eq(l[6], 'approved'); eq(l[7], 'share@spmcdvo.net');
     eq(l[8], '2026-07-28 07:30'); eq(l[9], 'origin: ocr');
     const d = L.viewRows('dietLog', rec('d', T, { ts: T, name: 'Rice', grams: 200, source: 'fdc', ref: '1',
-      per100: { na: 5, k: 35, p: 43, protein: 2.7, water: 68 } }), 'J', 'j@x')[0];
-    eq(JSON.stringify(d.slice(4, 12)), '["Rice",200,10,70,86,5.4,136,"fdc"]');
-    eq(d[12], 'ref: 1');
+      per100: { na: 5, k: 35, p: 43, protein: 2.7, water: 68, kcal: 130 } }), 'J', 'j@x')[0];
+    eq(JSON.stringify(d.slice(4, 13)), '["Rice",200,10,70,86,5.4,136,260,"fdc"]');
+    eq(d[13], 'ref: 1');
+    const d2 = L.viewRows('dietLog', rec('d2', T, { ts: T, name: 'Old', grams: 100, source: 'custom',
+      per100: { na: 1, k: 1, p: 1, protein: 1, water: 1 } }), 'J', 'j@x')[0];
+    eq(d2[11], '', 'missing kcal is blank: ');
   });
 
   test('view: medLogs/checklist expand per day; profile row', () => {

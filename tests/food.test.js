@@ -21,6 +21,8 @@ const FDC_FULL = fdcFood([
   { nutrientId: 1091, nutrientName: 'Phosphorus, P',  nutrientNumber: '305', unitName: 'MG', value: 50 },
   { nutrientId: 1003, nutrientName: 'Protein',        nutrientNumber: '203', unitName: 'G',  value: 4 },
   { nutrientId: 1051, nutrientName: 'Water',          nutrientNumber: '255', unitName: 'G',  value: 80 },
+  { nutrientId: 1062, nutrientName: 'Energy',         nutrientNumber: '268', unitName: 'KJ', value: 418 },
+  { nutrientId: 1008, nutrientName: 'Energy',         nutrientNumber: '208', unitName: 'KCAL', value: 100 },
 ]);
 
 /* OFF product shape: nutriments in grams per 100 g. */
@@ -28,7 +30,7 @@ const OFF_FULL = {
   code: '4800000000017',
   product_name: 'Test crackers',
   brands: 'Testbrand',
-  nutriments: { sodium_100g: 0.4, potassium_100g: 0.2, phosphorus_100g: 0.1, proteins_100g: 8 },
+  nutriments: { sodium_100g: 0.4, potassium_100g: 0.2, phosphorus_100g: 0.1, proteins_100g: 8, 'energy-kcal_100g': 450 },
 };
 
 /* ---------- suites ---------- */
@@ -45,14 +47,32 @@ export function runFoodTests() {
     eq(item.ref, '999001', 'ref is stored as a string: ');
   });
 
-  test('reads all five nutrients by nutrient number', () => {
+  test('reads all five nutrients plus kcal by nutrient number', () => {
     const p = F.parseFdcFood(FDC_FULL).per100;
-    eq(Object.keys(p).sort().join(','), 'k,na,p,protein,water');
+    eq(Object.keys(p).sort().join(','), 'k,kcal,na,p,protein,water');
     near(p.na, 20);
     near(p.k, 300);
     near(p.p, 50);
     near(p.protein, 4);
     near(p.water, 80);
+  });
+
+  test('kcal reads energy 208 in kcal, not the kJ row', () => {
+    near(F.parseFdcFood(FDC_FULL).per100.kcal, 100);
+  });
+
+  test('kcal matches nutrientId 1008 when the number is missing', () => {
+    const f = fdcFood([{ nutrientId: 1008, nutrientName: 'Energy', unitName: 'KCAL', value: 52 }]);
+    near(F.parseFdcFood(f).per100.kcal, 52);
+  });
+
+  test('energy only in kJ gives kcal null', () => {
+    const f = fdcFood([{ nutrientId: 1062, nutrientName: 'Energy', nutrientNumber: '268', unitName: 'KJ', value: 418 }]);
+    eq(F.parseFdcFood(f).per100.kcal, null);
+  });
+
+  test('no energy row gives kcal null', () => {
+    eq(F.parseFdcFood(fdcFood([])).per100.kcal, null);
   });
 
   test('a mg mineral is left in mg', () => {
@@ -139,6 +159,14 @@ export function runFoodTests() {
 
   test('protein is already in g and passes through', () => {
     near(F.parseOffProduct(OFF_FULL).per100.protein, 8);
+  });
+
+  test('kcal is read from energy-kcal_100g', () => {
+    near(F.parseOffProduct(OFF_FULL).per100.kcal, 450);
+  });
+
+  test('kcal absent from the product gives null', () => {
+    eq(F.parseOffProduct({ code: '1', product_name: 'Bare', nutriments: { 'energy-kj_100g': 100 } }).per100.kcal, null);
   });
 
   test('water absent from the product gives null', () => {
@@ -232,6 +260,17 @@ export function runFoodTests() {
     ]);
     near(totals.na, 100);
     eq(missing.na, 0);
+  });
+
+  test('kcal is scaled, summed and counted as missing like other nutrients', () => {
+    const { totals, missing } = F.sumDay([
+      { grams: 150, per100: { na: 1, k: 1, p: 1, protein: 1, water: 1, kcal: 200 } },
+      { grams: 50,  per100: { na: 1, k: 1, p: 1, protein: 1, water: 1, kcal: null } },
+      { grams: 100, per100: { na: 1, k: 1, p: 1, protein: 1, water: 1 } },
+    ]);
+    near(totals.kcal, 300);
+    eq(missing.kcal, 2);
+    near(F.scale({ kcal: 80 }, 50).kcal, 40);
   });
 
   test('a non-array input is treated as an empty day', () => {

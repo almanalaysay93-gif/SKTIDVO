@@ -13,6 +13,20 @@ const fixture = () => JSON.parse(readFileSync(new URL('./fixtures/backup-v1.json
 export function runBackupTests() {
   suite('backup');
 
+  test('diet: logged food keeps kcal per 100 g; absent kcal stays null', () => {
+    localStorage.clear();
+    const a = S.logFood({ name: 'Rice', grams: 200, source: 'fdc', ref: '1', per100: { na: 5, kcal: 130 } });
+    const b = S.logFood({ name: 'Old', grams: 100, source: 'custom', per100: { na: 5 } });
+    eq(a.per100.kcal, 130);
+    eq(b.per100.kcal, null);
+    const dump = JSON.parse(JSON.stringify(S.exportAll()));
+    localStorage.clear();
+    S.importAll(dump);
+    const log = S.getDietLog();
+    eq(log.find(e => e.name === 'Rice').per100.kcal, 130, 'backup round-trip keeps kcal: ');
+    eq(log.find(e => e.name === 'Old').per100.kcal, null);
+  });
+
   test('fixture has an approved lab (precondition)', () => {
     eq(fixture().labs.some(l => l.status === 'approved'), true);
   });

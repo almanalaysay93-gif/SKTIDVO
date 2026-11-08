@@ -29,6 +29,9 @@ const STRINGS = {
     "diet.approvedBy": "Gi-aprubahan ni {name}, {date}",
     "diet.removed": "Natangtang ang pagkaon",
     "diet.unknown": "wala nahibaw-i",
+    "diet.kcal": "Kaloriya",
+    "diet.kcalInfo": "Para kahibalo ra. Walay limit sa kaloriya.",
+    "diet.kcalNotListed": "walay kcal",
     "diet.warn.na": "Lapas na ka sa gi-aprubahan nga sodium limit karon. Sultihi ang dialysis nurse kung kanunay kini.",   // pending clinic approval
     "diet.warn.k": "Lapas na ka sa gi-aprubahan nga potassium limit karon. Sultihi ang dialysis nurse kung kanunay kini.",   // pending clinic approval
     "diet.warn.p": "Lapas na ka sa gi-aprubahan nga phosphorus limit karon. Sultihi ang dialysis nurse kung kanunay kini.",   // pending clinic approval
@@ -438,6 +441,9 @@ const STRINGS = {
     "diet.approvedBy": "Inaprubahan ni {name}, {date}",
     "diet.removed": "Natanggal ang pagkain",
     "diet.unknown": "hindi alam",
+    "diet.kcal": "Calories",
+    "diet.kcalInfo": "Para malaman lang. Walang limit sa calories.",
+    "diet.kcalNotListed": "walang kcal",
     "diet.warn.na": "Lampas ka na sa aprubadong sodium limit ngayon. Sabihan ang dialysis nurse kung madalas itong mangyari.",   // pending clinic approval
     "diet.warn.k": "Lampas ka na sa aprubadong potassium limit ngayon. Sabihan ang dialysis nurse kung madalas itong mangyari.",   // pending clinic approval
     "diet.warn.p": "Lampas ka na sa aprubadong phosphorus limit ngayon. Sabihan ang dialysis nurse kung madalas itong mangyari.",   // pending clinic approval
@@ -847,6 +853,9 @@ const STRINGS = {
     "diet.approvedBy": "Limits approved by {name}, {date}",
     "diet.removed": "Food removed",
     "diet.unknown": "unknown",
+    "diet.kcal": "Calories",
+    "diet.kcalInfo": "For information only. No calorie limit.",
+    "diet.kcalNotListed": "kcal not listed",
     "diet.warn.na": "Over your approved sodium limit for today. Tell your dialysis nurse if this happens often.",   // pending clinic approval
     "diet.warn.k": "Over your approved potassium limit for today. Tell your dialysis nurse if this happens often.",   // pending clinic approval
     "diet.warn.p": "Over your approved phosphorus limit for today. Tell your dialysis nurse if this happens often.",   // pending clinic approval
