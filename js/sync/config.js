@@ -5,7 +5,7 @@
    Never put a secret here.
    =================================================================== */
 
-export const EXEC_URL = 'https://script.google.com/macros/s/AKfycbz8zOouKg8wanp_Ven6IGiClyNI_P-E4RWvmWm-D0GDgaWirwIt4VI0DcKGN8u0cOJe/exec';        // Apps Script web app /exec URL (T053b)
+export const EXEC_URL = 'https://script.google.com/macros/s/AKfycbw54JXk4SZ9aOG3CufonGzwC17GiyWvU2Ncd9czNBPywm2DXbDLEmjC2Tlbfr0PSZ73/exec';        // Apps Script web app /exec URL (T053b)
 export const WEB_CLIENT_ID = '953977081189-km8fo4m9pnelre5kvifbca71dnplunt9.apps.googleusercontent.com';   // OAuth Web client ID (public)
 
 export const BATCH_MAX_RECORDS = 200;
