@@ -1,10 +1,10 @@
 /* sheets/drink.js — moved from app.js (F-RESTRUCTURE-01). */
 
-import { addDrink } from '../app.js';
 import { t } from '../i18n.js';
 import { $, esc } from '../ui/format.js';
 import { icon } from '../ui/icons.js';
 import { closeSheet, openSheet, readNumber } from '../ui/sheet.js';
+import { addDrink } from '../views/fluid.js';
 
 export function sheetCustomDrink() {
   openSheet({
