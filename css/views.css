@@ -159,3 +159,8 @@
 .welcome__value { margin: 0; font-size: var(--t-md); color: var(--fg); }
 .welcome__privacy { margin: 0; }
 .linklike { min-height: var(--tap); background: none; border: 0; padding: 0 var(--s-1); font: inherit; font-weight: 700; color: var(--brand); text-decoration: underline; }
+
+/* Sign-in gate: hide app chrome while the welcome view is up. */
+body.is-gate .nav,
+body.is-gate #btnSettings,
+body.is-gate #syncBadge { display: none; }

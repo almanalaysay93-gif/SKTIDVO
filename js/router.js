@@ -41,6 +41,13 @@ export function go(name) {
 export function render() {
   const v = VIEWS[view];
   $('#main').innerHTML = v.render();
+  // Sign-in page is a gate: no nav, settings or sync badge until the user
+  // signs in or chooses "continue without signing in".
+  const gate = view === 'welcome';
+  document.body.classList.toggle('is-gate', gate);
+  for (const el of $$('.nav, #btnSettings, #syncBadge')) {
+    if (gate) el.setAttribute('inert', ''); else el.removeAttribute('inert');
+  }
   // No app bar to retitle — the document title carries the view name for
   // tab labels and screen-reader announcements instead.
   document.title = `${t(v.title)} — ${t('app.name')}`;
