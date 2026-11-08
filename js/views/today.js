@@ -149,10 +149,11 @@ export function fluidReminder() {
   const over = left < 0;
   const glasses = S.glassesLeft();
   return reminderCard({
-    go: 'fluid', iconName: 'droplet', tone: over ? 'danger' : undefined,
+    // FR006 / theme rule 5: over-limit = alert icon + text label, never colour alone.
+    go: 'fluid', iconName: over ? 'alert' : 'droplet', tone: over ? 'danger' : undefined,
     title: t('fluid.title'),
     big: `${consumed}<small style="font-size:var(--t-sm);font-weight:600;color:var(--fg-muted)"> / ${S.getProfile().allowanceMl} ${esc(t('common.ml'))}</small>`,
-    sub: over ? t('fluid.noneLeft')
+    sub: over ? `${Math.abs(left)} ${t('common.ml')} ${t('fluid.over')} · ${t('fluid.noneLeft')}`
               : `${glasses} ${esc(glassWord(glasses))}`,
     tile: true
   });
