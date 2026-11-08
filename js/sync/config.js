@@ -5,8 +5,8 @@
    Never put a secret here.
    =================================================================== */
 
-export const EXEC_URL = '';        // Apps Script web app /exec URL (T053b)
-export const WEB_CLIENT_ID = '';   // OAuth Web client ID (public)
+export const EXEC_URL = 'https://script.google.com/macros/s/AKfycbxZ8TtGF7pq-Zi6e25QZyiRXOShWqOnZ_DOE06mo3xfdGw3vii778qMI1bkhXpfkjC4/exec';        // Apps Script web app /exec URL (T053b)
+export const WEB_CLIENT_ID = '564537014478-ahov3b2rrd7lnsgpmsf0bpii1gol6pej.apps.googleusercontent.com';   // OAuth Web client ID (public)
 
 export const BATCH_MAX_RECORDS = 200;
 export const BATCH_MAX_BYTES = 400 * 1024;
