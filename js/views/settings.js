@@ -5,6 +5,7 @@ import { getLang, langName, LANGS, t } from '../i18n.js';
 import { esc, fmtDate, localeTag, nf } from '../ui/format.js';
 import { icon } from '../ui/icons.js';
 import { Diet } from './diet.js';
+import { syncSection } from './sync.js';
 
 export function viewSettings() {
   const p = S.getProfile();
@@ -152,6 +153,8 @@ export function viewSettings() {
       </button>
       <p class="banner">${icon('alert')}<span>${esc(t('cal.warnHealth'))}</span></p>
     </div>
+
+    ${syncSection()}
 
     ${Diet.settingsSection()}
 

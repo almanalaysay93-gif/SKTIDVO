@@ -184,11 +184,7 @@ function labsSection() {
         <p class="lab__vals">${L.LAB_KEYS.filter(k => l.values[k] != null)
           .map(k => `${esc(t('lab.' + k))} <b class="tnum">${esc(l.values[k])}</b>${l.units?.[k] ? ' ' + esc(l.units[k]) : ''}`).join(' · ')}</p>
         ${l.status !== 'pending' && l.approvedBy ? `<p class="hint" style="margin:0">${esc(l.approvedBy)} · ${esc(H.fmtDate(l.approvedAt))}</p>` : ''}
-        ${l.status === 'pending' ? `
-        <div class="btn-pair">
-          <button type="button" class="btn btn--ghost" data-diet="lab-approve" data-id="${esc(l.id)}">${icon('check')}<span>${esc(t('clinic.approve'))}</span></button>
-          <button type="button" class="btn btn--danger" data-diet="lab-reject" data-id="${esc(l.id)}">${icon('x')}<span>${esc(t('clinic.reject'))}</span></button>
-        </div>` : ''}
+        ${l.status === 'pending' ? `<p class="hint" style="margin:0">${icon('info')} ${esc(t('clinic.needLogin'))}</p>` : ''}
       </div>`).join('') : `<p class="hint">${esc(t('diet.labsEmpty'))}</p>`}
     <div class="btn-pair">
       <button type="button" class="btn btn--ghost" data-diet="lab-import">${icon('upload')}<span>${esc(t('diet.labsImport'))}</span></button>
@@ -357,6 +353,12 @@ function onSearchInput(e) {
   searchTimer = setTimeout(() => runSearch(q), DEBOUNCE_MS);
 }
 
+/* Online but Open Food Facts unreachable (network/CORS-type failure, often
+   overload): say "busy", not "offline". */
+export function offBusy(settled, online = navigator.onLine !== false) {
+  return online && settled?.status === 'rejected' && settled.reason?.code === 'OFFLINE';
+}
+
 async function runSearch(q) {
   const { t } = H;
   const cached = S.searchFoodCache(q);
@@ -377,15 +379,20 @@ async function runSearch(q) {
     S.cacheFoods(items);
     renderResults('foodResults', items);
     const rl = [fdc, off].some(r => r.reason?.code === 'RATE_LIMITED');
-    setStatus('foodStatus', rl ? t('food.rateLimited') : `${items.length}`);
+    const busy = offBusy(off);
+    setStatus('foodStatus', rl ? t('food.rateLimited') : busy ? `${items.length} · ${t('food.busy')}` : `${items.length}`);
     return;
   }
   const errs = [fdc, off].map(r => r.reason).filter(Boolean);
   const code = errs.find(e => e.code === 'RATE_LIMITED') ? 'RATE_LIMITED'
+             : offBusy(off) ? 'BUSY'
              : errs.length === 2 && errs.every(e => e.code === 'OFFLINE') ? 'OFFLINE'
              : errs.length === 2 ? 'HTTP' : null;
   if (code === 'OFFLINE') {
     setStatus('foodStatus', t('food.offline'));
+    renderResults('foodResults', cached, ` · ${t('food.srcCache')}`);
+  } else if (code === 'BUSY') {
+    setStatus('foodStatus', t('food.busy'));
     renderResults('foodResults', cached, ` · ${t('food.srcCache')}`);
   } else if (code === 'RATE_LIMITED') {
     setStatus('foodStatus', t('food.rateLimited'));
@@ -422,7 +429,7 @@ async function runBarcode(raw) {
     choose(item);
   } catch (e) {
     if (e.name === 'AbortError') return;
-    const msg = e.code === 'OFFLINE' ? t('food.offline') : e.code === 'RATE_LIMITED' ? t('food.rateLimited') : t('food.error');
+    const msg = e.code === 'OFFLINE' ? (navigator.onLine !== false ? t('food.busy') : t('food.offline')) : e.code === 'RATE_LIMITED' ? t('food.rateLimited') : t('food.error');
     setStatus('barcodeStatus', msg);
     renderResults('barcodeResult', cached ? [cached] : []);
   }
@@ -628,89 +635,6 @@ function importCsvFile(file) {
 }
 
 /* ===================================================================
-   Clinician PIN
-   =================================================================== */
-
-async function verifyPin(pin) {
-  const c = S.getClinician();
-  if (!c) return false;
-  return (await L.hashPin(pin, c.salt)) === c.hash;
-}
-
-/** Ask for the clinician PIN, then run onOk(approverName). */
-function withPin(title, onOk) {
-  const { t, esc, icon } = H;
-  const c = S.getClinician();
-  if (!c) { H.toast(t('clinic.noPin')); return; }
-  H.openSheet({
-    title,
-    body: `
-    <div class="field">
-      <label for="pinIn">${esc(t('clinic.enterPin'))}</label>
-      <input class="input" id="pinIn" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
-      <div class="err" id="pinIn-err" role="alert" aria-live="polite"></div>
-    </div>
-    <p class="hint">${esc(fill(t('clinic.isSet'), { name: c.name }))}</p>
-    <button type="button" class="btn btn--primary" id="pinGo">${icon('shield')}<span>${esc(t('clinic.confirm'))}</span></button>`,
-    onMount: sheet => {
-      const go = async () => {
-        const ok = await verifyPin($id('pinIn').value);
-        if (!ok) {
-          $id('pinIn').setAttribute('aria-invalid', 'true');
-          $id('pinIn-err').innerHTML = `${icon('alert')}<span>${esc(t('clinic.wrong'))}</span>`;
-          $id('pinIn').select();
-          return;
-        }
-        H.closeSheet();
-        onOk(c.name);
-      };
-      sheet.querySelector('#pinGo').addEventListener('click', go);
-      sheet.querySelector('#pinIn').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
-    }
-  });
-}
-
-function sheetSetPin() {
-  const { t, esc, icon } = H;
-  const c = S.getClinician();
-  H.openSheet({
-    title: c ? t('clinic.change') : t('clinic.set'),
-    body: `
-    ${c ? `<div class="field"><label for="pinOld">${esc(t('clinic.oldPin'))}</label>
-      <input class="input" id="pinOld" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
-      <div class="err" id="pinOld-err" role="alert" aria-live="polite"></div></div>` : ''}
-    <div class="field"><label for="pinName">${esc(t('clinic.name'))}</label>
-      <input class="input" id="pinName" type="text" maxlength="80" value="${esc(c?.name || '')}">
-      <div class="err" id="pinName-err" role="alert" aria-live="polite"></div></div>
-    <div class="field"><label for="pinNew">${esc(t('clinic.pin'))}</label>
-      <input class="input" id="pinNew" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
-      <div class="err" id="pinNew-err" role="alert" aria-live="polite"></div></div>
-    <div class="field"><label for="pinNew2">${esc(t('clinic.pin2'))}</label>
-      <input class="input" id="pinNew2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
-      <div class="err" id="pinNew2-err" role="alert" aria-live="polite"></div></div>
-    <button type="button" class="btn btn--primary" id="pinSave">${icon('shield')}<span>${esc(t('common.save'))}</span></button>`,
-    onMount: sheet => sheet.querySelector('#pinSave').addEventListener('click', async () => {
-      const err = (id, key) => {
-        $id(id).setAttribute('aria-invalid', 'true');
-        $id(id + '-err').innerHTML = `${icon('alert')}<span>${esc(t(key))}</span>`;
-        $id(id).focus();
-      };
-      sheet.querySelectorAll('.err').forEach(e => { e.innerHTML = ''; });
-      if (c && !(await verifyPin($id('pinOld').value))) return err('pinOld', 'clinic.wrong');
-      const name = $id('pinName').value.trim();
-      if (!name) return err('pinName', 'common.required');
-      const pin = $id('pinNew').value;
-      if (!/^\d{4,8}$/.test(pin)) return err('pinNew', 'clinic.pinBad');
-      if (pin !== $id('pinNew2').value) return err('pinNew2', 'clinic.mismatch');
-      const salt = L.newSalt();
-      S.setClinician({ salt, hash: await L.hashPin(pin, salt), name });
-      H.closeSheet();
-      H.toast(t('clinic.saved'));
-    })
-  });
-}
-
-/* ===================================================================
    Limit rules (clinician)
    =================================================================== */
 
@@ -779,7 +703,7 @@ function saveRules() {
   rules.protein = { gPerKg };
   S.saveDietRules(rules);
   H.closeSheet();
-  H.toast(H.t('clinic.done'));
+  H.toast(H.t('settings.saved'));
 }
 
 function computeLimits() {
@@ -802,7 +726,6 @@ function limitTable(set) {
 function settingsSection() {
   const { t, esc, icon } = H;
   const p = S.getProfile();
-  const c = S.getClinician();
   const d = S.getDietLimits();
   return `
     <h2 class="section-title">${esc(t('fdc.title'))}</h2>
@@ -817,9 +740,7 @@ function settingsSection() {
 
     <h2 class="section-title">${esc(t('clinic.title'))}</h2>
     <div class="card">
-      <p class="hint" style="margin-top:0">${esc(t('clinic.hint'))}</p>
-      ${c ? `<p class="row__sub">${esc(fill(t('clinic.isSet'), { name: c.name }))}</p>` : ''}
-      <button type="button" class="btn btn--ghost" data-diet="pin-set" style="width:100%">${icon('shield')}<span>${esc(c ? t('clinic.change') : t('clinic.set'))}</span></button>
+      <p class="hint" style="margin:0">${icon('shield')} ${esc(t('clinic.loginHint'))}</p>
     </div>
 
     <h2 class="section-title">${esc(t('rules.title'))}</h2>
@@ -833,10 +754,7 @@ function settingsSection() {
         <h3 class="sub-title">${esc(t('rules.pendingTitle'))}</h3>
         ${limitTable(d.pending)}
         ${lastNotes.map(n => `<p class="hint">${icon('info')} ${esc(fill(t('rules.missingLab'), { lab: t('lab.' + n.lab) }))} (${esc(t('diet.' + n.key))})</p>`).join('')}
-        <div class="btn-pair">
-          <button type="button" class="btn btn--ghost" data-diet="limits-approve">${icon('check')}<span>${esc(t('clinic.approve'))}</span></button>
-          <button type="button" class="btn btn--danger" data-diet="limits-reject">${icon('x')}<span>${esc(t('clinic.reject'))}</span></button>
-        </div>
+        <p class="hint">${icon('info')} ${esc(t('clinic.needLogin'))}</p>
       </div>` : ''}
       <div class="btn-pair">
         <button type="button" class="btn btn--ghost" data-diet="rules-edit">${icon('edit')}<span>${esc(t('rules.edit'))}</span></button>
@@ -889,14 +807,9 @@ function onClick(e) {
     case 'lab-manual': return sheetLabManual();
     case 'lab-save': return saveManualLab();
     case 'del-lab': if (confirm(t('common.delete') + '?')) S.deleteLab(id); return;
-    case 'lab-approve': return withPin(t('clinic.approve'), name => { S.decideLab(id, 'approved', name); H.toast(t('clinic.done')); });
-    case 'lab-reject':  return withPin(t('clinic.reject'),  name => { S.decideLab(id, 'rejected', name); H.toast(t('clinic.done')); });
-    case 'pin-set': return sheetSetPin();
-    case 'rules-edit': return withPin(t('rules.edit'), () => sheetRules());
+    case 'rules-edit': return sheetRules();
     case 'rules-save': return saveRules();
     case 'compute': return computeLimits();
-    case 'limits-approve': return withPin(t('clinic.approve'), name => { S.decidePendingLimits(true, name); lastNotes = []; H.toast(t('clinic.done')); });
-    case 'limits-reject':  return withPin(t('clinic.reject'),  name => { S.decidePendingLimits(false, name); lastNotes = []; H.toast(t('clinic.done')); });
   }
 }
 

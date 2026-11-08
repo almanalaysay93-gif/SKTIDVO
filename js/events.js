@@ -18,8 +18,14 @@ import { readNumber } from './ui/sheet.js';
 import { toast } from './ui/toast.js';
 import { addDrink } from './views/fluid.js';
 import { calCursor, setCalCursor } from './views/today.js';
+import { onSyncClick } from './views/sync.js';
+import { welcomeSkip } from './views/welcome.js';
 
 export function onClick(e) {
+  const syncHit = onSyncClick(e);
+  if (syncHit === 'settings' || syncHit === 'welcome') return go(syncHit);
+  if (e.target.closest('#btnWelcomeSkip')) return welcomeSkip(go);
+  if (syncHit) return;
   const el = e.target.closest('[data-go],[data-ml],[data-lang],[data-sched],[data-custom-day],' +
     '[data-del-intake],[data-del-weight],[data-del-session],[data-empty-action],' +
     '[data-toggle-med],[data-edit-med],[data-toggle-chk],[data-del-hdbp],[data-cal-nav],' +

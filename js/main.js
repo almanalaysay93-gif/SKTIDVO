@@ -9,6 +9,9 @@ import { render, setView, view, VIEWS } from './router.js';
 import { $ } from './ui/format.js';
 import { applyTheme } from './ui/theme.js';
 import { toast } from './ui/toast.js';
+import { engine, getRole, setSwitchConfirm, startSync } from './sync/client.js';
+import { maybePromptConsent, paintHeader, paintSettings } from './views/sync.js';
+import { welcomeDue } from './views/welcome.js';
 
 export function wireNetwork() {
   const show = () => {
@@ -36,6 +39,7 @@ function wireBadge() {
 
 export function boot() {
   S.migrateV2();   // F-SYNC-01 schema v2 (idempotent)
+  S.retirePin();   // FR025: PIN retired, legacy hash deleted
   wireBadge();
   const p = S.getProfile();
   setLang(p.lang);
@@ -76,11 +80,32 @@ export function boot() {
   });
 
   S.subscribe(render);
+  S.subscribe(() => paintHeader());
   wireNetwork();
   render();
 
+  // F-SYNC-01: status in header + Settings; re-render Settings when the state changes.
+  let lastState = null;
+  setSwitchConfirm((from, to) => confirm(t('sync.switchAccount').replace('{from}', from).replace('{to}', to)));
+  engine.onStatus(s => {
+    paintHeader(s);
+    paintSettings(s);
+    const key = s.state + (getRole()?.clinician ? ':clin' : '');
+    if (key !== lastState) {
+      const prev = lastState;
+      lastState = key;
+      if ((view === 'settings' || view === 'welcome') && prev !== null && !document.getElementById('sheet')) render();
+      if (prev && (prev.startsWith('signin') || prev.startsWith('off'))) maybePromptConsent(s);
+    }
+  });
+  startSync();
+
   // First run with no targets: drop the patient straight into settings.
-  if (!p.setupDone) { setView('settings'); render(); }
+  if (welcomeDue()) { setView('welcome'); render(); }
+  else if (!p.setupDone) { setView('settings'); render(); }
+  const reWelcome = () => { if (view === 'welcome') render(); };
+  addEventListener('online', reWelcome);
+  addEventListener('offline', reWelcome);
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => { /* fine offline */ });

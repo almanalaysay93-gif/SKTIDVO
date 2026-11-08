@@ -30,7 +30,8 @@ const KEYS = {
   outbox:      NS + 'outbox',
   syncState:   NS + 'syncState',
   a2hsDismissed: NS + 'a2hsDismissed',
-  lastBackupAt:  NS + 'lastBackupAt'
+  lastBackupAt:  NS + 'lastBackupAt',
+  welcomeDismissed: NS + 'welcomeDismissed'
 };
 
 const DEFAULT_PROFILE = {
@@ -964,6 +965,9 @@ export function getLastBackupAt() { const v = readRaw(KEYS.lastBackupAt, null); 
 export function setLastBackupAt(ms = Date.now()) { writeRaw(KEYS.lastBackupAt, ms); }
 export function isA2hsDismissed() { return readRaw(KEYS.a2hsDismissed, false) === true; }
 export function dismissA2hs() { writeRaw(KEYS.a2hsDismissed, true); emit(); }
+
+export function isWelcomeDismissed() { return readRaw(KEYS.welcomeDismissed, false) === true; }
+export function setWelcomeDismissed(v = true) { writeRaw(KEYS.welcomeDismissed, !!v); }
 
 export function wipeAll() {
   Object.values(KEYS).forEach(k => localStorage.removeItem(k));

@@ -10,6 +10,7 @@ import { viewSession } from './views/session.js';
 import { viewSettings } from './views/settings.js';
 import { viewToday } from './views/today.js';
 import { viewWeight } from './views/weight.js';
+import { viewWelcome } from './views/welcome.js';
 
 export let view = 'today';
 
@@ -22,7 +23,8 @@ export const VIEWS = {
   meds:     { render: viewMeds,     title: 'meds.title'     },
   session:  { render: viewSession,  title: 'session.title'  },
   diet:     { render: () => Diet.viewDiet(), title: 'diet.title' },
-  settings: { render: viewSettings, title: 'settings.title' }
+  settings: { render: viewSettings, title: 'settings.title' },
+  welcome:  { render: viewWelcome,  title: 'welcome.title'  }
 };
 
 export function go(name) {

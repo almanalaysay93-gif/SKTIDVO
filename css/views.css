@@ -151,3 +151,11 @@
 
 /* Fluid "over" key: alert icon pairs with the label (constitution: icon + label). */
 .stat__alert { width: 1em; height: 1em; vertical-align: -0.15em; color: var(--danger); }
+
+/* Sign-in page (FR032) */
+.welcome { display: flex; flex-direction: column; align-items: center; gap: var(--s-4); text-align: center; max-width: 30rem; margin: 0 auto; }
+.welcome__seal { width: 96px; height: 96px; border-radius: 50%; background: #FFFFFF; border: 1px solid var(--border); object-fit: contain; padding: 6px; }
+.welcome__title { margin: 0; font-size: var(--t-xl, 1.75rem); font-weight: 800; color: var(--fg); }
+.welcome__value { margin: 0; font-size: var(--t-md); color: var(--fg); }
+.welcome__privacy { margin: 0; }
+.linklike { min-height: var(--tap); background: none; border: 0; padding: 0 var(--s-1); font: inherit; font-weight: 700; color: var(--brand); text-decoration: underline; }

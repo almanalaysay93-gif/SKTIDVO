@@ -22,7 +22,7 @@ export function runSwTests() {
   const shell = [...src.match(/const SHELL = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
   const has = p => shell.includes('./' + p);
 
-  test('cache name bumped to sktidvo-v9', () => eq(/const CACHE = 'sktidvo-v9'/.test(src), true));
+  test('cache name bumped to sktidvo-v10', () => eq(/const CACHE = 'sktidvo-v10'/.test(src), true));
   test('SHELL has ./, index.html, manifest', () => {
     eq(shell.includes('./'), true); eq(has('index.html'), true); eq(has('manifest.webmanifest'), true);
   });
@@ -45,6 +45,18 @@ export function runSwTests() {
     const html = read('index.html');
     eq(walk('css/').filter(f => f.endsWith('.css') && !html.includes(`href="${f}"`)).join(), '');
     eq(html.includes('src="js/main.js"'), true);
+  });
+  test('T062 Google sign-in/sync origins are network-only (never cached)', () => {
+    eq(/GOOGLE_ORIGINS\.includes\(url\.origin\)\) return;/.test(src), true);
+    for (const o of ['https://accounts.google.com', 'https://script.google.com', 'https://script.googleusercontent.com', 'https://oauth2.googleapis.com'])
+      eq(src.includes(`'${o}'`), true, o + ' ');
+  });
+  test('T062 CSP: GIS scoped to /gsi/, Apps Script + redirect host in connect-src, no unsafe-eval', () => {
+    const csp = read('index.html').match(/Content-Security-Policy" content="([^"]+)"/)[1];
+    eq(/script-src 'self' https:\/\/accounts\.google\.com\/gsi\/client;/.test(csp), true);
+    eq(/frame-src https:\/\/accounts\.google\.com\/gsi\/;/.test(csp), true);
+    eq(/connect-src[^;]*https:\/\/script\.google\.com[^;]*https:\/\/script\.googleusercontent\.com[^;]*https:\/\/accounts\.google\.com\/gsi\//.test(csp), true);
+    eq(csp.includes('unsafe-eval'), false);
   });
   test('food APIs are network-only', () => {
     eq(/FOOD_ORIGINS\.includes\(url\.origin\)\) return;/.test(src), true);

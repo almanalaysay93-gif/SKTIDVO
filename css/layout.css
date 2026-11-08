@@ -101,6 +101,25 @@
 .app-header__gear:active { transform: scale(.94); box-shadow: var(--shadow-press); }
 .app-header__gear svg { width: 26px; height: 26px; }
 
+/* F-SYNC-01 sync status (FR028): icon + text, tone-coloured; error/sign-in = the
+   only magenta element in the header (Von Restorff). */
+.app-header__sync {
+  flex: 0 1 auto; min-height: var(--tap); max-width: 9.5rem;
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  padding: 0 var(--s-3); border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--fg-muted);
+  font: inherit; font-size: var(--t-xs); font-weight: 700; line-height: 1.15; text-align: left;
+  box-shadow: var(--shadow); touch-action: manipulation;
+}
+.app-header__sync svg { flex: 0 0 18px; width: 18px; height: 18px; }
+.app-header__sync span { overflow-wrap: anywhere; }
+.app-header__sync[data-tone="ok"] { color: var(--ok); background: var(--ok-tint); }
+.app-header__sync[data-tone="warn"] { color: var(--warn); background: var(--warn-tint); border-color: var(--warn); }
+.app-header__sync:empty { display: none; }
+.sync-line[data-tone="warn"] { color: var(--warn); background: var(--warn-tint); }
+.gis-slot { margin-top: var(--s-3); min-height: 0; }
+.privacy .sub-title { margin-top: var(--s-4); }
+
 /* ---------- Main ---------- */
 .main {
   flex: 1; margin-top: var(--s-4);

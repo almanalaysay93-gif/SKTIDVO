@@ -5,7 +5,7 @@
    Bump CACHE on every release or patients keep the old shell.
    =================================================================== */
 
-const CACHE = 'sktidvo-v9';
+const CACHE = 'sktidvo-v10';
 
 // Every module in the tree must be here (tests/sw.test.js checks it).
 const SHELL = [
@@ -56,8 +56,10 @@ const SHELL = [
   './js/views/meds.js',
   './js/views/session.js',
   './js/views/settings.js',
+  './js/views/sync.js',
   './js/views/today.js',
   './js/views/weight.js',
+  './js/views/welcome.js',
   './assets/icon.svg',
   './assets/icon-maskable.svg',
   './assets/icon-512.png',
@@ -66,6 +68,9 @@ const SHELL = [
 ];
 
 const FOOD_ORIGINS = ['https://api.nal.usda.gov', 'https://world.openfoodfacts.org'];
+// Sign-in + sync are live and authenticated: never cached (plan §14.8, T062).
+const GOOGLE_ORIGINS = ['https://accounts.google.com', 'https://script.google.com',
+  'https://script.googleusercontent.com', 'https://oauth2.googleapis.com'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -98,6 +103,7 @@ self.addEventListener('fetch', e => {
   // Food search is live data: network-only. The app keeps its own food
   // cache in localStorage, so offline search still works (FR009).
   if (FOOD_ORIGINS.includes(url.origin)) return;
+  if (GOOGLE_ORIGINS.includes(url.origin)) return;
 
   // Google Fonts are a nicety. Cache them opportunistically; never block on them.
   const sameOrigin = url.origin === location.origin;
