@@ -125,6 +125,8 @@ export function syncSection() {
       ` : `
         ${lastEmail() ? `<p class="row__sub">${esc(fill(t('sync.signInAgain'), { email: lastEmail() }))}</p>` : ''}
         <button type="button" class="btn btn--primary" data-sync="signin" style="width:100%">${icon('shield')}<span>${esc(t(lastEmail() ? 'sync.signInAgainBtn' : 'welcome.signIn'))}</span></button>
+        ${lastEmail() ? `<div style="height:var(--s-3)"></div>
+        <button type="button" class="btn btn--ghost" data-sync="signout" id="btnSignOutSettings" style="width:100%">${icon('x')}<span>${esc(t('sync.signOut'))}</span></button>` : ''}
       `}
       <div style="height:var(--s-3)"></div>
       <button type="button" class="btn btn--ghost" data-sync="privacy" style="width:100%">${icon('info')}<span>${esc(t('privacy.open'))}</span></button>
