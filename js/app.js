@@ -5,7 +5,10 @@
    =================================================================== */
 
 import * as S from './store.js';
-import * as Cal from './calendar.js';
+import { exportBackup, importBackup } from './features/backup.js';
+import { calOpenGoogle, calSchedule, calSessions, calWeighIn } from './features/cal-export.js';
+import { installPrompt, setInstallPrompt, syncInstallUi, syncPersistUi } from './features/install.js';
+import { printSummary } from './features/print.js';
 import { setLang, t } from './i18n.js';
 import { sheetCalibrate } from './sheets/calibrate.js';
 import { sheetCustomDrink } from './sheets/drink.js';
@@ -13,7 +16,7 @@ import { sheetHdBp } from './sheets/hdbp.js';
 import { sheetMedication } from './sheets/medication.js';
 import { sheetSession } from './sheets/session.js';
 import { sheetWeight } from './sheets/weight.js';
-import { $, $$, esc, nf } from './ui/format.js';
+import { $, $$ } from './ui/format.js';
 import { readNumber } from './ui/sheet.js';
 import { toast } from './ui/toast.js';
 import { Diet } from './views/diet.js';
@@ -27,186 +30,6 @@ import { viewWeight } from './views/weight.js';
 /* ---------- tiny helpers ---------- */
 
 export let view = 'today';
-function printSummary() {
-  const s = S.buildSummary();
-  const p = s.profile;
-  const w = document.createElement('div');
-  w.id = 'printOnly';
-  w.innerHTML = `
-    <div class="card">
-      <h2>${esc(t('settings.export'))} — ${esc(t('app.sub'))}</h2>
-      <p class="hint">${esc(new Date().toLocaleString())}</p>
-      <ul>
-        <li class="row"><span class="row__body">Dry weight</span>
-            <span class="row__val tnum">${p.dryWeightKg ?? '—'} kg</span></li>
-        <li class="row"><span class="row__body">Daily fluid allowance</span>
-            <span class="row__val tnum">${p.allowanceMl ?? '—'} mL</span></li>
-        <li class="row"><span class="row__body">Schedule</span>
-            <span class="row__val">${esc(p.schedule)}</span></li>
-        <li class="row"><span class="row__body">IDWG now (gap ${s.gapDays ?? '—'}d)</span>
-            <span class="row__val tnum">${s.idwgKg != null ? nf(s.idwgKg, 1) + ' kg' : '—'}
-              / limit ${nf(s.limitKg, 1)} kg</span></li>
-        <li class="row"><span class="row__body">Fluid today</span>
-            <span class="row__val tnum">${s.todayIntakeMl} mL</span></li>
-      </ul>
-      <h3 style="margin-top:16px">Weights (last 14)</h3>
-      <ul>${s.weights.map(x => `<li class="row"><span class="row__body">${esc(x.day)}</span>
-             <span class="row__val tnum">${nf(x.kg, 1)} kg</span></li>`).join('') || '<li>—</li>'}</ul>
-      <h3 style="margin-top:16px">Dialysis (last 6)</h3>
-      <ul>${s.sessions.map(x => `<li class="row"><span class="row__body">${esc(x.day)}</span>
-             <span class="row__val tnum">post ${nf(x.postKg, 1)} kg${
-               x.ufL != null ? ` · UF ${nf(x.ufL, 1)} L` : ''}${
-               x.bpSys ? ` · BP ${x.bpSys}/${x.bpDia ?? '—'}` : ''}</span></li>`).join('') || '<li>—</li>'}</ul>
-      <p class="hint" style="margin-top:16px">${esc(t('legal.disclaimer'))}</p>
-    </div>`;
-  document.body.appendChild(w);
-  window.print();
-  setTimeout(() => w.remove(), 500);
-}
-
-/* ===================================================================
-   Backup / restore / install
-   =================================================================== */
-
-function downloadFile(filename, mime, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: mime }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function exportBackup() {
-  downloadFile(S.exportFilename(), 'application/json',
-               JSON.stringify(S.exportAll(), null, 2));
-  toast(t('data.exported'));
-}
-
-/* ---------- Google Calendar ----------
-   An .ics file rather than the Calendar API: no OAuth, no Cloud
-   project, and nothing leaves the phone until the patient imports it.
-   The VALARM in these events is also the only reminder this app can
-   produce that survives the app being closed. */
-
-function calFile(name, text) {
-  downloadFile(name, 'text/calendar;charset=utf-8', text);
-  toast(t('cal.downloaded'));
-}
-
-function calSchedule() {
-  const p = S.getProfile();
-  calFile('sktidvo-dialysis-schedule.ics', Cal.scheduleIcs({
-    schedule: p.schedule,
-    customDays: p.customDays,
-    sessionTime: p.sessionTime,
-    summary: t('cal.evDialysis'),
-    alarmMinutesBefore: 120,
-    alarmText: t('cal.alarmDialysis'),
-    from: S.nextSessionDate() || new Date()
-  }));
-}
-
-function calWeighIn() {
-  const p = S.getProfile();
-  calFile('sktidvo-weigh-in.ics', Cal.weighInIcs({
-    weighTime: p.weighTime,
-    summary: t('cal.evWeigh'),
-    description: t('cal.evWeighNote'),
-    alarmMinutesBefore: 0,
-    alarmText: t('cal.evWeigh')
-  }));
-}
-
-function calSessions() {
-  const sessions = S.getSessions();
-  if (!sessions.length) { toast(t('cal.noSessions')); return; }
-  const p = S.getProfile();
-  calFile('sktidvo-dialysis-log.ics', Cal.sessionsIcs({
-    sessions,
-    sessionTime: p.sessionTime,
-    summary: t('cal.evDialysis'),
-    labels: { post: t('cal.labelPost'), uf: t('cal.labelUf'), bp: t('cal.labelBp') }
-  }));
-}
-
-function calOpenGoogle() {
-  const p = S.getProfile();
-  const next = S.nextSessionDate();
-  if (!next) return;
-  // Title and time only — this query string travels to Google and lands
-  // in browser history, so no weights or blood pressure go in it.
-  const url = Cal.googleTemplateUrl({
-    title: t('cal.evDialysis'),
-    start: Cal.atTime(next, p.sessionTime),
-    schedule: p.schedule,
-    customDays: p.customDays
-  });
-  window.open(url, '_blank', 'noopener');
-}
-
-function importBackup(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    let parsed;
-    try {
-      parsed = JSON.parse(reader.result);
-    } catch {
-      toast(t('data.badFile'));
-      return;
-    }
-    // Restore overwrites everything, so confirm before touching stored data.
-    if (!confirm(t('data.restoreConfirm'))) return;
-    try {
-      const counts = S.importAll(parsed);
-      setLang(S.getProfile().lang);
-      applyTheme(S.getProfile().theme);
-      render();
-      toast(`${t('data.restored')} · ${counts.weights}/${counts.intake}/${counts.sessions}`);
-    } catch {
-      toast(t('data.badFile'));
-    }
-  };
-  reader.onerror = () => toast(t('data.badFile'));
-  reader.readAsText(file);
-}
-
-/* Chrome fires beforeinstallprompt once and only if the app is installable.
-   Stash it — the button can only be shown while we hold a live event. */
-let installPrompt = null;
-
-function isStandalone() {
-  return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-}
-
-function syncInstallUi() {
-  const btn = $('#btnInstall');
-  if (!btn) return;                       // not on the settings view
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const done = isStandalone();
-  btn.hidden = done || !installPrompt;
-  $('#installDone').hidden = !done;
-  // iOS never fires beforeinstallprompt; Chrome may not have fired it yet.
-  // Always leave one usable route on screen rather than an empty card.
-  $('#installIos').hidden = done || !ios || !!installPrompt;
-  $('#installManual').hidden = done || ios || !!installPrompt;
-}
-
-async function syncPersistUi() {
-  const el = $('#persistState');
-  if (!el) return;
-  const ok = await S.isPersisted();
-  el.textContent = ok === true ? t('data.persistOn')
-                 : ok === false ? t('data.persistOff')
-                 : '—';
-}
-
-/* ===================================================================
-   Router + delegated events
-   =================================================================== */
-
 const VIEWS = {
   today:    { render: viewToday,    title: 'today.title'    },
   fluid:    { render: viewFluid,    title: 'fluid.title'    },
@@ -228,7 +51,7 @@ export function go(name) {
   scrollTo(0, 0);
 }
 
-function render() {
+export function render() {
   const v = VIEWS[view];
   $('#main').innerHTML = v.render();
   // No app bar to retitle — the document title carries the view name for
@@ -287,7 +110,7 @@ function onClick(e) {
   if (el.id === 'btnInstall') {
     if (!installPrompt) return;
     installPrompt.prompt();
-    installPrompt.userChoice.finally(() => { installPrompt = null; syncInstallUi(); });
+    installPrompt.userChoice.finally(() => { setInstallPrompt(null); syncInstallUi(); });
     return;
   }
 
@@ -363,7 +186,7 @@ function onClick(e) {
 
 // Light-only theme: any stored profile.theme value is ignored (kept in the
 // profile so old backups still validate).
-function applyTheme() {
+export function applyTheme() {
   document.documentElement.removeAttribute('data-theme');
 }
 
@@ -379,7 +202,6 @@ function wireNetwork() {
   addEventListener('offline', show);
   show();
 }
-
 
 /* ---------- boot ---------- */
 
@@ -412,10 +234,10 @@ function boot() {
 
   addEventListener('beforeinstallprompt', e => {
     e.preventDefault();                  // keep the mini-infobar off; we have our own button
-    installPrompt = e;
+    setInstallPrompt(e);
     syncInstallUi();
   });
-  addEventListener('appinstalled', () => { installPrompt = null; syncInstallUi(); });
+  addEventListener('appinstalled', () => { setInstallPrompt(null); syncInstallUi(); });
 
   addEventListener('hashchange', () => {
     const next = location.hash.slice(1);
