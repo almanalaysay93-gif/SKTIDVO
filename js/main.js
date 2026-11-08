@@ -12,6 +12,7 @@ import { applyTheme } from './ui/theme.js';
 export function wireNetwork() {
   const show = () => {
     const b = $('#offline');
+    if (!b) return;   // banner lives in #main and is replaced by render() (pre-existing; see T026 notes)
     b.hidden = navigator.onLine;
     b.querySelector('span').textContent = t('common.offline');
   };
@@ -22,7 +23,18 @@ export function wireNetwork() {
 
 /* ---------- boot ---------- */
 
+/* Seal is optional: drop the badge if the image is missing (was an inline
+   onerror attribute, which CSP script-src 'self' blocks). */
+function wireBadge() {
+  const img = $('.app-header__badge img');
+  if (!img) return;
+  const drop = () => img.parentNode?.remove();
+  if (img.complete && !img.naturalWidth) drop();
+  else img.addEventListener('error', drop, { once: true });
+}
+
 export function boot() {
+  wireBadge();
   const p = S.getProfile();
   setLang(p.lang);
   applyTheme(p.theme);

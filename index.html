@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- CSP (plan §7): scripts self-only; inline styles allowed for dynamic chart widths/colours. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://api.nal.usda.gov https://world.openfoodfacts.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'">
 <!-- Never disable zoom: patients enlarge text. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Fluid and weight tracker for haemodialysis patients of the SPMC Kidney and Transplant Institute (SKTI), Davao City. Works offline. All data stays on the phone.">
@@ -152,8 +154,7 @@
     <div class="app-header__row">
       <span class="app-header__badge">
         <img src="assets/logo.png"
-             alt="Department of Health, Republic of the Philippines — Southern Philippines Medical Center seal"
-             onerror="this.parentNode.remove()">
+             alt="Department of Health, Republic of the Philippines — Southern Philippines Medical Center seal">
       </span>
       <h1 class="app-header__title">
         SKTIDVO
