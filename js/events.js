@@ -1,76 +1,25 @@
-/* ===================================================================
-   app.js — views, rendering, interaction.
-   No framework: this has to boot fast on a cheap Android and work
-   with the radio off.
-   =================================================================== */
+/* events.js — moved from app.js (F-RESTRUCTURE-01). */
 
 import * as S from './store.js';
-import { exportBackup, importBackup } from './features/backup.js';
+import { exportBackup } from './features/backup.js';
 import { calOpenGoogle, calSchedule, calSessions, calWeighIn } from './features/cal-export.js';
-import { installPrompt, setInstallPrompt, syncInstallUi, syncPersistUi } from './features/install.js';
+import { installPrompt, setInstallPrompt, syncInstallUi } from './features/install.js';
 import { printSummary } from './features/print.js';
 import { setLang, t } from './i18n.js';
+import { go, render } from './router.js';
 import { sheetCalibrate } from './sheets/calibrate.js';
 import { sheetCustomDrink } from './sheets/drink.js';
 import { sheetHdBp } from './sheets/hdbp.js';
 import { sheetMedication } from './sheets/medication.js';
 import { sheetSession } from './sheets/session.js';
 import { sheetWeight } from './sheets/weight.js';
-import { $, $$ } from './ui/format.js';
+import { $ } from './ui/format.js';
 import { readNumber } from './ui/sheet.js';
 import { toast } from './ui/toast.js';
-import { Diet } from './views/diet.js';
-import { addDrink, viewFluid } from './views/fluid.js';
-import { viewMeds } from './views/meds.js';
-import { viewSession } from './views/session.js';
-import { viewSettings } from './views/settings.js';
-import { calCursor, setCalCursor, viewToday } from './views/today.js';
-import { viewWeight } from './views/weight.js';
+import { addDrink } from './views/fluid.js';
+import { calCursor, setCalCursor } from './views/today.js';
 
-/* ---------- tiny helpers ---------- */
-
-export let view = 'today';
-const VIEWS = {
-  today:    { render: viewToday,    title: 'today.title'    },
-  fluid:    { render: viewFluid,    title: 'fluid.title'    },
-  weight:   { render: viewWeight,   title: 'weight.title'   },
-  meds:     { render: viewMeds,     title: 'meds.title'     },
-  session:  { render: viewSession,  title: 'session.title'  },
-  diet:     { render: () => Diet.viewDiet(), title: 'diet.title' },
-  settings: { render: viewSettings, title: 'settings.title' }
-};
-
-export function go(name) {
-  view = VIEWS[name] ? name : 'today';
-  location.hash = '#' + view;
-  render();
-  // Move SR focus to content on route change, but don't let the browser's
-  // default focus-scroll shove the new view under the sticky gear button —
-  // main always starts the view at the top already.
-  $('#main').focus({ preventScroll: true });
-  scrollTo(0, 0);
-}
-
-export function render() {
-  const v = VIEWS[view];
-  $('#main').innerHTML = v.render();
-  // No app bar to retitle — the document title carries the view name for
-  // tab labels and screen-reader announcements instead.
-  document.title = `${t(v.title)} — ${t('app.name')}`;
-
-  $$('.nav__item').forEach(b => {
-    const active = b.dataset.go === view;
-    b.setAttribute('aria-current', active ? 'page' : 'false');
-    b.querySelector('span').textContent = t('nav.' + b.dataset.go);
-  });
-  $('#btnSettings').setAttribute('aria-label', t('settings.title'));
-
-  // Settings-only widgets; both no-op on other views.
-  syncInstallUi();
-  syncPersistUi();
-}
-
-function onClick(e) {
+export function onClick(e) {
   const el = e.target.closest('[data-go],[data-ml],[data-lang],[data-sched],[data-custom-day],' +
     '[data-del-intake],[data-del-weight],[data-del-session],[data-empty-action],' +
     '[data-toggle-med],[data-edit-med],[data-toggle-chk],[data-del-hdbp],[data-cal-nav],' +
@@ -180,86 +129,4 @@ function onClick(e) {
     if (confirm(t('settings.wipeConfirm'))) { S.wipeAll(); go('today'); }
     return;
   }
-}
-
-/* ---------- theme ---------- */
-
-// Light-only theme: any stored profile.theme value is ignored (kept in the
-// profile so old backups still validate).
-export function applyTheme() {
-  document.documentElement.removeAttribute('data-theme');
-}
-
-/* ---------- offline banner ---------- */
-
-function wireNetwork() {
-  const show = () => {
-    const b = $('#offline');
-    b.hidden = navigator.onLine;
-    b.querySelector('span').textContent = t('common.offline');
-  };
-  addEventListener('online', show);
-  addEventListener('offline', show);
-  show();
-}
-
-/* ---------- boot ---------- */
-
-function boot() {
-  const p = S.getProfile();
-  setLang(p.lang);
-  applyTheme(p.theme);
-
-  view = (location.hash || '#today').slice(1);
-  if (!VIEWS[view]) view = 'today';
-
-  document.addEventListener('click', onClick);
-
-  // The file input is re-created on every render, so listen at document level.
-  document.addEventListener('change', e => {
-    if (e.target.id === 'pSessionTime' && e.target.value) {
-      return void S.saveProfile({ sessionTime: e.target.value });
-    }
-    if (e.target.id === 'pWeighTime' && e.target.value) {
-      return void S.saveProfile({ weighTime: e.target.value });
-    }
-    if (e.target.id !== 'importFile') return;
-    const file = e.target.files?.[0];
-    e.target.value = '';                 // allow re-picking the same file
-    if (file) importBackup(file);
-  });
-
-  // Ask the browser to stop treating our data as evictable cache.
-  S.requestPersistence().then(syncPersistUi);
-
-  addEventListener('beforeinstallprompt', e => {
-    e.preventDefault();                  // keep the mini-infobar off; we have our own button
-    setInstallPrompt(e);
-    syncInstallUi();
-  });
-  addEventListener('appinstalled', () => { setInstallPrompt(null); syncInstallUi(); });
-
-  addEventListener('hashchange', () => {
-    const next = location.hash.slice(1);
-    if (VIEWS[next] && next !== view) { view = next; render(); }
-  });
-
-  S.subscribe(render);
-  wireNetwork();
-  render();
-
-  // First run with no targets: drop the patient straight into settings.
-  if (!p.setupDone) { view = 'settings'; render(); }
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => { /* fine offline */ });
-  }
-}
-
-// A module script can finish loading after DOMContentLoaded has already
-// fired (slow network, cheap phone) — the listener would then never run.
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', boot);
-} else {
-  boot();
 }

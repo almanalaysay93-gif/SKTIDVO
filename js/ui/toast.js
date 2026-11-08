@@ -19,7 +19,3 @@ export function toast(msg, actionLabel, onAction) {
   wrap.appendChild(el);
   setTimeout(() => el.remove(), 5000);
 }
-
-/* ===================================================================
-   Sheet (bottom modal)
-   =================================================================== */

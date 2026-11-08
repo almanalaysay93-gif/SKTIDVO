@@ -77,7 +77,3 @@ export function viewFluid() {
     </div>
   </div>`;
 }
-
-/* ===================================================================
-   View: Weight  (SVG sparkline, no chart library — must work offline)
-   =================================================================== */

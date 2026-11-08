@@ -1,8 +1,9 @@
 /* features/backup.js — moved from app.js (F-RESTRUCTURE-01). */
 
 import * as S from '../store.js';
-import { applyTheme, render } from '../app.js';
 import { setLang, t } from '../i18n.js';
+import { render } from '../router.js';
+import { applyTheme } from '../ui/theme.js';
 import { toast } from '../ui/toast.js';
 
 export function downloadFile(filename, mime, text) {

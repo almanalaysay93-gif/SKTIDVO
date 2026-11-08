@@ -208,7 +208,3 @@ export function viewSettings() {
     <p class="banner">${icon('info')}<span>${esc(t('legal.disclaimer'))}</span></p>
   </div>`;
 }
-
-/* ===================================================================
-   Nurse summary — printable, no network
-   =================================================================== */

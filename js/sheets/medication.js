@@ -72,7 +72,3 @@ export function sheetMedication(medId) {
     }
   });
 }
-
-/* ===================================================================
-   View: Dialysis sessions & Pre-dialysis checklist
-   =================================================================== */

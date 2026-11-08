@@ -84,7 +84,3 @@ export function readNumber(input, { min, max, required = true }) {
   if (errEl) errEl.innerHTML = '';
   return n;
 }
-
-/* ===================================================================
-   Sheets: weight, drink, session
-   =================================================================== */
