@@ -1,10 +1,10 @@
 /* views/settings.js — moved from app.js (F-RESTRUCTURE-01). */
 
 import * as S from '../store.js';
-import { Diet } from '../app.js';
 import { getLang, langName, LANGS, t } from '../i18n.js';
 import { esc, fmtDate, localeTag, nf } from '../ui/format.js';
 import { icon } from '../ui/icons.js';
+import { Diet } from './diet.js';
 
 export function viewSettings() {
   const p = S.getProfile();

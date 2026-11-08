@@ -6,7 +6,6 @@
 
 import * as S from './store.js';
 import * as Cal from './calendar.js';
-import { initDiet } from './diet-view.js';
 import { setLang, t } from './i18n.js';
 import { sheetCalibrate } from './sheets/calibrate.js';
 import { sheetCustomDrink } from './sheets/drink.js';
@@ -14,10 +13,10 @@ import { sheetHdBp } from './sheets/hdbp.js';
 import { sheetMedication } from './sheets/medication.js';
 import { sheetSession } from './sheets/session.js';
 import { sheetWeight } from './sheets/weight.js';
-import { $, $$, esc, fmtDate, fmtTime, nf } from './ui/format.js';
-import { icon } from './ui/icons.js';
-import { closeSheet, openSheet, readNumber } from './ui/sheet.js';
+import { $, $$, esc, nf } from './ui/format.js';
+import { readNumber } from './ui/sheet.js';
 import { toast } from './ui/toast.js';
+import { Diet } from './views/diet.js';
 import { addDrink, viewFluid } from './views/fluid.js';
 import { viewMeds } from './views/meds.js';
 import { viewSession } from './views/session.js';
@@ -381,9 +380,6 @@ function wireNetwork() {
   show();
 }
 
-/* ---------- diet feature (js/diet-view.js) ---------- */
-
-export const Diet = initDiet({ $, $$, esc, icon, t, toast, openSheet, closeSheet, readNumber, fmtDate, fmtTime });
 
 /* ---------- boot ---------- */
 

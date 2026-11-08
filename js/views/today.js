@@ -1,11 +1,11 @@
 /* views/today.js — moved from app.js (F-RESTRUCTURE-01). */
 
 import * as S from '../store.js';
-import { Diet } from '../app.js';
 import { glassWord, t } from '../i18n.js';
 import { fluidWeekChart, medsTodayChart, sessionUfChart, weightTrendChart } from '../ui/charts.js';
 import { esc, localeTag, nf } from '../ui/format.js';
 import { icon } from '../ui/icons.js';
+import { Diet } from './diet.js';
 
 export let calCursor = new Date();   // month currently shown on Today's calendar
 export function setCalCursor(d) { calCursor = d; }
