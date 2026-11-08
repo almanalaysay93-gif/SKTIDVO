@@ -334,11 +334,19 @@ function renderResults(targetId, items, extra = '') {
   $id(targetId).innerHTML = items.map((f, i) => resultButton(f, i, extra)).join('');
 }
 
-function setStatus(id, msg, busy = false) {
+function setStatus(id, msg, busy = false, iconName = '') {
   const el = $id(id);
   if (!el) return;
-  el.textContent = msg;
+  // FR009: the offline state carries an icon as well as text (theme rule 5).
+  if (iconName && msg) el.innerHTML = `${H.icon(iconName)}<span>${H.esc(msg)}</span>`;
+  else el.textContent = msg;
   el.classList.toggle('fstatus--busy', busy);
+}
+
+/* Custom foods live on the device, so they stay searchable offline. */
+function matchCustom(q) {
+  const needle = q.toLowerCase();
+  return S.getCustomFoods().filter(f => f.name.toLowerCase().includes(needle));
 }
 
 function onSearchInput(e) {
@@ -353,8 +361,9 @@ async function runSearch(q) {
   const { t } = H;
   const cached = S.searchFoodCache(q);
   if (!navigator.onLine) {
-    setStatus('foodStatus', t('food.offline') + (cached.length ? '' : ' ' + t('food.noResults')));
-    renderResults('foodResults', cached, ` · ${t('food.srcCache')}`);
+    const local = [...matchCustom(q), ...cached];
+    setStatus('foodStatus', t('food.offline') + (local.length ? '' : ' ' + t('food.noResults')), false, 'info');
+    renderResults('foodResults', local, ` · ${t('food.srcCache')}`);
     return;
   }
   searchCtrl = new AbortController();
