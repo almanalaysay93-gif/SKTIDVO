@@ -20,6 +20,14 @@ export function runAppsScriptTests() {
   const L = load();
   suite('apps-script');
 
+  test('access-token tokeninfo normalised and verified (popup sign-in)', () => {
+    const info = { azp: AUD[0], aud: AUD[0], exp: String(NOW / 1000 + 600), email: 'Pat@Example.com', email_verified: 'true', scope: 'openid email' };
+    eq(L.verifyClaims(L.accessTokenClaims(info), NOW, AUD).email, 'pat@example.com');
+    eq(L.verifyClaims(L.accessTokenClaims({ ...info, aud: 'evil', azp: 'evil' }), NOW, AUD).code, 'bad_aud');
+    eq(L.verifyClaims(L.accessTokenClaims({ ...info, exp: String(NOW / 1000 - 1) }), NOW, AUD).code, 'expired');
+    eq(L.accessTokenClaims(null), null);
+  });
+
   test('A024 verifyClaims: valid → lowercased email; wrong aud/iss, expired, unverified rejected', () => {
     const ok = L.verifyClaims(claims(), NOW, AUD);
     eq(ok.ok, true); eq(ok.email, 'pat@example.com');

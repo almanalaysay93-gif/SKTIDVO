@@ -127,3 +127,49 @@ export function signOut() {
 }
 
 export function isLoaded() { return !!globalThis.google?.accounts?.id; }
+
+/* ---------- popup sign-in from our own button (OAuth token client) ----------
+   Google's ID-token flow can only start from Google's rendered button, so our
+   pink button uses the OAuth 2 token client instead: one tap opens Google's
+   popup. The access token is sent to the Apps Script prefixed "at:"; the
+   server verifies it with Google's tokeninfo (aud/azp, exp, email_verified).
+   Memory only, like the ID token. */
+
+let tokenClient = null;
+
+/** Load GIS ahead of the tap so the popup opens inside the click (no blocker). */
+export function preload() { return loadScript().catch(() => {}); }
+
+function makeTokenClient(resolve, reject) {
+  return globalThis.google.accounts.oauth2.initTokenClient({
+    client_id: WEB_CLIENT_ID,
+    scope: 'openid email profile',
+    callback: r => (r && r.access_token ? resolve(r) : reject(new Error(r?.error || 'denied'))),
+    error_callback: e => reject(new Error(e?.type || 'popup_failed'))
+  });
+}
+
+/** Pure: build in-memory claims from a token response + verified email. */
+export function accessClaims(resp, email, now = Date.now()) {
+  return { email: String(email || '').toLowerCase(), exp: Math.floor(now / 1000) + Number(resp.expires_in || 0) };
+}
+
+/**
+ * Open Google's sign-in popup. `whoami(tokenString)` asks our server for the
+ * verified email (the server, not the client, decides identity — C016).
+ */
+export async function popupSignIn(whoami) {
+  if (!WEB_CLIENT_ID) throw new Error('not_configured');
+  if (!globalThis.google?.accounts?.oauth2) await loadScript();
+  const resp = await new Promise((resolve, reject) => {
+    tokenClient = makeTokenClient(resolve, reject);
+    tokenClient.requestAccessToken({ prompt: '' });
+  });
+  const raw = 'at:' + resp.access_token;
+  const me = await whoami(raw);
+  if (!me || !me.email) throw new Error('whoami_failed');
+  token = raw;
+  claims = accessClaims(resp, me.email);
+  notify();
+  return currentUser();
+}

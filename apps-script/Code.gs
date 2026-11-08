@@ -170,9 +170,15 @@ function tokenClaims_(idToken) {
   var key = 'tok:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, idToken));
   var hit = cache.get(key);
   if (hit) return JSON.parse(hit);
-  var res = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken), { muteHttpExceptions: true });
+  // "at:" = OAuth access token from the app's own sign-in button; otherwise an ID token.
+  var isAccess = idToken.indexOf('at:') === 0;
+  var url = isAccess
+    ? 'https://oauth2.googleapis.com/tokeninfo?access_token=' + encodeURIComponent(idToken.slice(3))
+    : 'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken);
+  var res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
   if (res.getResponseCode() !== 200) return null;
   var claims = JSON.parse(res.getContentText());
+  if (isAccess) claims = accessTokenClaims(claims);
   var ttl = Math.floor(Number(claims.exp) - Date.now() / 1000);
   if (ttl > 5) cache.put(key, JSON.stringify(claims), Math.min(ttl, 21600));
   return claims;

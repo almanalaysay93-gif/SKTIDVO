@@ -6,6 +6,7 @@
    taps "Sign in with Google" (or was signed in before).
    =================================================================== */
 
+import { call } from '../sync/api.js';
 import * as S from '../store.js';
 import { t } from '../i18n.js';
 import { configured, engine, getRole, gis, signOut } from '../sync/client.js';
@@ -96,8 +97,7 @@ export function syncSection() {
         <button type="button" class="btn btn--danger" data-sync="deleteme" style="width:100%">${icon('trash')}<span>${esc(t('sync.deleteCloud'))}</span></button>
       ` : `
         ${st.email ? `<p class="row__sub">${esc(fill(t('sync.signInAgain'), { email: st.email }))}</p>` : ''}
-        <p class="row__sub">${esc(t('welcome.signIn'))}</p>
-        <div id="gisButton" class="gis-slot" data-gis-auto></div>
+        <button type="button" class="btn btn--primary" data-sync="signin" style="width:100%">${icon('shield')}<span>${esc(t('welcome.signIn'))}</span></button>
       `}
       <div style="height:var(--s-3)"></div>
       <button type="button" class="btn btn--ghost" data-sync="privacy" style="width:100%">${icon('info')}<span>${esc(t('privacy.open'))}</span></button>
@@ -185,30 +185,19 @@ async function deleteFlow(confirmed = false) {
   }
 }
 
-/** Mount Google's own button into every [data-gis-auto] slot after a render.
-    One button only: our styled button cannot start the ID-token popup itself. */
-export async function mountGoogleButtons() {
-  if (!navigator.onLine) return;
-  for (const slot of document.querySelectorAll('[data-gis-auto]')) {
-    if (slot.dataset.mounted) continue;
-    slot.dataset.mounted = '1';
-    try {
-      await gis.renderButton(slot, { locale: { ceb: 'ceb', tl: 'fil', en: 'en' }[S.getProfile().lang] });
-    } catch { slot.innerHTML = ''; toast(t('sync.signInFailed')); }
-  }
-}
-globalThis.addEventListener?.('view:rendered', () => { mountGoogleButtons(); });
+/** Preload Google's script on sign-in screens so the popup opens inside the tap. */
+globalThis.addEventListener?.('view:rendered', () => {
+  if (navigator.onLine && document.querySelector('[data-sync="signin"]')) gis.preload();
+});
 
-export async function signInFlow(slotSel = '#gisButton') {
+/** One tap on our button → Google's sign-in popup. The server verifies the token. */
+export async function signInFlow() {
   if (!navigator.onLine) { toast(t('sync.needOnline')); return; }
-  const slot = $(slotSel);
   try {
-    if (slot) { slot.innerHTML = `<p class="hint">${esc(t('sync.loading'))}</p>`; }
-    await gis.renderButton(slot || document.body, { locale: { ceb: 'ceb', tl: 'fil', en: 'en' }[S.getProfile().lang] });
-    const ok = await gis.silentSignIn(4000);
-    if (!ok && slot) slot.insertAdjacentHTML('afterbegin', `<p class="hint">${esc(t('sync.tapGoogle'))}</p>`);
-  } catch {
-    if (slot) slot.innerHTML = '';
+    await gis.popupSignIn(raw => call('whoami', {}, { idToken: raw }));
+  } catch (err) {
+    const msg = String(err && err.message || '');
+    if (msg === 'popup_closed' || msg === 'access_denied') return;   // user closed the popup
     toast(t('sync.signInFailed'));
   }
 }

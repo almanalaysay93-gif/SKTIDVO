@@ -34,9 +34,8 @@ export function viewWelcome() {
     </div>
     ${user ? `<p class="banner">${icon('check-circle')}<span>${esc(t('sync.signedInAs').replace('{email}', user.email))}</span></p>
       <button type="button" class="btn btn--primary" data-go="today" style="width:100%">${esc(t('welcome.continue'))}</button>` : `
-    ${online ? `<p class="welcome__lead">${esc(t('welcome.signIn'))}</p>
-    <div id="welcomeGis" class="gis-slot" data-gis-auto></div>`
-      : `<p class="banner">${icon('info')}<span>${esc(t('welcome.needsInternet'))}</span></p>`}
+    <button type="button" class="btn btn--primary" data-sync="signin" style="width:100%" ${online ? '' : 'disabled aria-disabled="true"'}>
+      ${icon('shield')}<span>${esc(online ? t('welcome.signIn') : t('welcome.needsInternet'))}</span></button>
     <button type="button" class="btn btn--ghost" id="btnWelcomeSkip" style="width:100%">${esc(t('welcome.skip'))}</button>`}
     <p class="hint welcome__privacy">${esc(t('welcome.privacy'))}
       <button type="button" class="linklike" data-sync="privacy">${esc(t('privacy.open'))}</button></p>

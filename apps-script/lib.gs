@@ -21,6 +21,14 @@ var LIB = {
 };
 
 /** tokeninfo claims → {ok, email} | {ok:false, code}. */
+/** Normalise Google tokeninfo for an ACCESS token to ID-token-shaped claims.
+    Access tokeninfo has azp/aud, exp, email, email_verified but no iss. Pure. */
+function accessTokenClaims(info) {
+  if (!info || typeof info !== 'object') return null;
+  return { aud: info.aud || info.azp, iss: 'https://accounts.google.com', exp: info.exp,
+    email: info.email, email_verified: info.email_verified };
+}
+
 function verifyClaims(claims, nowMs, allowedAuds) {
   if (!claims || typeof claims !== 'object') return { ok: false, code: 'bad_token' };
   if (allowedAuds.indexOf(claims.aud) < 0) return { ok: false, code: 'bad_aud' };
@@ -263,7 +271,7 @@ function consentGiven(rows, email) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { LIB: LIB, verifyClaims: verifyClaims, authorize: authorize, validatePayload: validatePayload,
+  module.exports = { LIB: LIB, verifyClaims: verifyClaims, accessTokenClaims: accessTokenClaims, authorize: authorize, validatePayload: validatePayload,
     lww: lww, forcePendingLabs: forcePendingLabs, rateLimitDecision: rateLimitDecision,
     purgeWatermarkDecision: purgeWatermarkDecision, cursorTooOld: cursorTooOld, applyPush: applyPush,
     approveRecord: approveRecord, clinicianEditRecord: clinicianEditRecord, retentionExpired: retentionExpired,
