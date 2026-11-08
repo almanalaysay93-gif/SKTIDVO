@@ -21,7 +21,7 @@ export function viewMeds() {
 
   return `
   <div class="view">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s-4)">
+    <div style="display:flex;flex-wrap:wrap;gap:var(--s-2);justify-content:space-between;align-items:center;margin-bottom:var(--s-4)">
       <h2 style="font-size:var(--t-xl);margin:0">${esc(t('meds.title'))}</h2>
       <button type="button" class="btn btn--primary" id="btnAddMed">
         ${icon('plus')}<span>${esc(t('meds.addBtn'))}</span>

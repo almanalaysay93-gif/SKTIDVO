@@ -7,8 +7,21 @@
   flex-direction: column;
   background: var(--bg);
 }
-@media (min-width: 900px) {
+/* Responsive bands (plan §5): phone < 768 single column; tablet 768–1023
+   and desktop ≥ 1024 widen the shell. The bottom nav stays on every size
+   (C009) and follows --shell-max, so it widens with the content. */
+@media (min-width: 768px) {
+  :root { --shell-max: 960px; }
   .shell { box-shadow: var(--shadow-lg); }
+  .view--today { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); align-items: start; }
+  .today-col { min-width: 0; }
+  .view:not(.view--today) { max-width: 720px; margin-inline: auto; }
+  body > .sheet { max-width: 560px; }
+}
+@media (min-width: 1024px) {
+  :root { --shell-max: 1120px; }
+  .view--today { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--s-5); }
+  .view:not(.view--today) { max-width: 800px; }
 }
 
 /* ---------- App header ----------
@@ -18,7 +31,7 @@
    Everything animated here is switched off under prefers-reduced-motion. */
 .app-header {
   position: sticky; top: 0; z-index: var(--z-nav);
-  height: calc(96px + env(safe-area-inset-top));
+  min-height: calc(96px + env(safe-area-inset-top));
   overflow: hidden; isolation: isolate;
   background: linear-gradient(160deg, #F7FBFF 0%, #DCEBF8 55%, #CFE4F5 100%);
   border-bottom: 1px solid #4F687E;   /* 4.45:1 on #CFE4F5 */
@@ -43,7 +56,7 @@
 @keyframes blobDriftB { to { transform: translate(-160px, -30px) scale(.9); } }
 .app-header__row {
   position: relative; z-index: 1;
-  height: 100%;
+  min-height: calc(96px + env(safe-area-inset-top));
   display: flex; align-items: center; gap: var(--s-3);
   padding: max(env(safe-area-inset-top), var(--s-2)) var(--s-4) 0;
   animation: headerIn 600ms var(--ease-out) both;
@@ -71,7 +84,7 @@
   display: block; margin-top: 2px;
   font-size: var(--t-xs); font-weight: 600; letter-spacing: .01em;
   color: var(--fg-muted);   /* 6.2:1 on #CFE4F5 */
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  white-space: normal; overflow-wrap: anywhere;   /* FR007: wrap, never ellipsis */
 }
 .app-header__gear {
   flex: 0 0 var(--tap); width: var(--tap); height: var(--tap);

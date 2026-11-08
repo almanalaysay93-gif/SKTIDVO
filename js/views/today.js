@@ -268,15 +268,19 @@ export function viewToday() {
   const status = S.lastSession() ? statusCard() : '';
   return `
   <div class="view view--today">
-    ${nudge}
-    ${status}
-    <div class="today-grid-2">
-      ${fluidReminder()}
-      ${weightReminder()}
+    <div class="today-col today-col--main">
+      ${nudge}
+      ${status}
+      <div class="today-grid-2">
+        ${fluidReminder()}
+        ${weightReminder()}
+      </div>
+      ${Diet.todayCard()}
     </div>
-    ${Diet.todayCard()}
-    ${nextHdReminder()}
-    ${calendarCard()}
-    ${trendsSection()}
+    <div class="today-col today-col--side">
+      ${nextHdReminder()}
+      ${calendarCard()}
+      ${trendsSection()}
+    </div>
   </div>`;
 }
