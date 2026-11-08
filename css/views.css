@@ -166,3 +166,6 @@ body.is-gate #btnSettings,
 body.is-gate #syncBadge { display: none; }
 .welcome__lead { margin: 0; font-weight: 600; color: var(--fg); }
 .gis-slot { display: flex; justify-content: center; width: 100%; min-height: 44px; }
+
+/* Sign-in page has no text inputs: no text caret or text selection on it. */
+.welcome, .welcome * { caret-color: transparent; -webkit-user-select: none; user-select: none; }
