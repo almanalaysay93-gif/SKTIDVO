@@ -25,7 +25,8 @@ export function viewWelcome() {
   const user = gis.currentUser();
   return `
   <div class="view welcome">
-    <img class="welcome__seal" src="assets/logo.png" alt="" width="96" height="96">
+    <img class="welcome__hero" src="assets/skti-building-welcome.jpg"
+         alt="SPMC Kidney and Transplant Institute building" width="569" height="539">
     <h2 class="welcome__title">SKTIDVO</h2>
     <p class="welcome__value">${esc(t('welcome.value'))}</p>
     <div class="seg" role="group" aria-label="${esc(t('settings.language'))}">

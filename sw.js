@@ -5,7 +5,7 @@
    Bump CACHE on every release or patients keep the old shell.
    =================================================================== */
 
-const CACHE = 'sktidvo-v10';
+const CACHE = 'sktidvo-v11';
 
 // Every module in the tree must be here (tests/sw.test.js checks it).
 const SHELL = [
@@ -64,7 +64,8 @@ const SHELL = [
   './assets/icon-maskable.svg',
   './assets/icon-512.png',
   './assets/icon-maskable-512.png',
-  './assets/logo.png'
+  './assets/logo.png',
+  './assets/skti-building-welcome.jpg'
 ];
 
 const FOOD_ORIGINS = ['https://api.nal.usda.gov', 'https://world.openfoodfacts.org'];
