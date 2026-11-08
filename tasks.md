@@ -11,33 +11,33 @@ Advisory: no deploy between T014 and T027 (stale SW SHELL).
 | ID | Task | Owner | Deps | Links | Files | Verification |
 |---|---|---|---|---|---|---|
 | T001 | Commit pre-work on branch `feat/diet-theme`; record baseline SHA | main session | — | C014, OQ-08 | git only | DONE — d60a336 on feat/diet-theme |
-| T002 | Commit test runner `tests/run-all.mjs`; record baseline pass count N | HB | T001 | FR002, C012 | tests/run-all.mjs | runner output with N, 0 fail |
-| T003 | Baseline screenshots 320/390/768/1024/1440 × 7 screens | OR | T002 | A004 | docs/screens/baseline/ | 35 PNGs |
-| T004 | localStorage + backup fixture from current version | OR | T002 | C005, A008 | tests/fixtures/ | fixture loads in current app |
-| T005 | Move `$`,`$$`,`esc`,`nf`,`localeTag`,`fmtDate`,`fmtTime`,`relDay` → ui/format.js; `icon` → ui/icons.js; `toast` → ui/toast.js | HB | T002 | FR001, plan §3.1 | js/ui/*, js/app.js | TEST; no console error |
-| T006 | Move sheet primitives → ui/sheet.js | HB | T005 | FR001 | js/ui/sheet.js | TEST; open/close each sheet |
-| T007 | Move charts → ui/charts.js | HB | T006 | FR001 | js/ui/charts.js | TEST; trends render |
-| T008 | Move sheets/* (weight, calibrate, drink, hdbp, session, medication) | HB | T007 | FR001 | js/sheets/* | TEST; log one of each |
-| T009 | Move Today symbols incl. `emptyStatus`,`nextHdLabel`,`calCursor`,`calendarCard` → views/today.js | OI | T008 | FR001 | js/views/today.js | TEST; matches T003 at 390 |
-| T010 | Move fluid (`DRINKS`,`FOODS`,`addDrink`,`tiles`,`drinkGrid`), weight, meds, session (`hdBpCard`) views | HB | T009 | FR001 | js/views/* | TEST; each tab renders |
-| T011 | Move views/settings.js | OI | T010 | FR001 | js/views/settings.js | TEST; language, schedule, USDA key, wipe-all confirm |
-| T012 | Move diet-view.js → views/diet.js + re-export shim | HB | T011 | FR001 | js/views/diet.js, js/diet-view.js | TEST; diet, CSV import, lab JSON import, manual lab |
-| T013 | Move features/backup (`downloadFile`,`exportBackup`,`importBackup`), cal-export (`calFile`,`cal*`), print, install | HB | T012 | FR001 | js/features/* | TEST; export/import roundtrip, ICS, print preview |
-| T014 | Move `view`,`VIEWS`,`go`,`render` → router.js; `onClick` → events.js; boot/SW register → main.js; delete app.js; index.html → main.js | OI | T013 | FR001, C002 | js/main.js, router.js, events.js, index.html | TEST; full click-through |
-| T015 | Symbol + module-graph check script (each baseline app.js symbol in exactly one module, no cycles, imports resolve, ≤400 lines) | HB | T014 | NFR001, plan §3.1 | scripts/check-modules.mjs | exit 0 |
-| T016 | Review parity + `esc` audit of innerHTML | OR | T015 | C001, plan §7 | — | review notes; fixes by OI |
-| T017 | Split CSS into tokens/base/layout/components/views/print (link tags) | HB | T016 | FR005 | css/*, index.html | no visual diff vs T003 at 390 |
-| T018 | manifest `orientation` portrait → any | HB | T017 | US003 | manifest.webmanifest | installed PWA rotates on tablet |
-| T019 | Breakpoints 768/1024; grid (Today: status+fluid left, reminders+trends right); bottom nav all sizes | OI | T018 | FR005, C009, OQ-06 | css/layout.css, views.css | A004 |
-| T020 | Header subtitle fix at 390 | OI | T019 | FR007 | css/* | A006 |
-| T021 | Fluid card over-limit icon + label | OI | T020 | FR006, C007 | js/views/today.js, css | A005 + unit test |
-| T022 | Backup import resets all labs/limits to `pending` (approval by clinician login after F-SYNC-01; PIN until T060) | OI | T021 | FR008, US005, OQ-03 | js/features/backup.js, js/store.js | A007 in tests/backup.test.js |
-| T023 | Backup import validation (types, size cap) | OI | T022 | plan §7 | js/features/backup.js | tests/backup.test.js |
-| T024 | Food search offline message; cached/custom foods usable | OI | T023 | FR009 | js/views/diet.js | A011 |
-| T025 | Print stylesheet tablet/desktop | HB | T024 | FR013 | css/print.css | A013 (A4 + Letter) |
-| T026 | CSP meta (styles `'unsafe-inline'`, `script-src 'self'`) — Google origins added later in T062 | OI | T025 | plan §7 | index.html | no CSP console errors; no visual diff vs T003 at 390; food search works online |
-| T027 | sw.js: module SHELL, `sktidvo-v8`, food API network-only, guarded update toast; SHELL test | OI | T026 | FR003, FR012, plan §6 | sw.js, js/main.js, tests/sw.test.js | test covers `./`, manifest, assets, js/**, css/* |
-| T028 | Relative-path audit | HB | T027 | FR004, C006 | — | grep root-absolute URLs = 0 |
+| T002 | Commit test runner `tests/run-all.mjs`; record baseline pass count N | HB | T001 | FR002, C012 | tests/run-all.mjs | runner output with N, 0 fail  · DONE a879021 — baseline N=142/142 |
+| T003 | Baseline screenshots 320/390/768/1024/1440 × 7 screens | OR | T002 | A004 | docs/screens/baseline/ | 35 PNGs  · DONE 59291b4 — 35 PNGs docs/screens/baseline (baseline overflow 320 Meds/Diet, 390 Diet) |
+| T004 | localStorage + backup fixture from current version | OR | T002 | C005, A008 | tests/fixtures/ | fixture loads in current app  · DONE 59291b4 — tests/fixtures/*-v1.json |
+| T005 | Move `$`,`$$`,`esc`,`nf`,`localeTag`,`fmtDate`,`fmtTime`,`relDay` → ui/format.js; `icon` → ui/icons.js; `toast` → ui/toast.js | HB | T002 | FR001, plan §3.1 | js/ui/*, js/app.js | TEST; no console error  · DONE |
+| T006 | Move sheet primitives → ui/sheet.js | HB | T005 | FR001 | js/ui/sheet.js | TEST; open/close each sheet  · DONE |
+| T007 | Move charts → ui/charts.js | HB | T006 | FR001 | js/ui/charts.js | TEST; trends render  · DONE |
+| T008 | Move sheets/* (weight, calibrate, drink, hdbp, session, medication) | HB | T007 | FR001 | js/sheets/* | TEST; log one of each  · DONE |
+| T009 | Move Today symbols incl. `emptyStatus`,`nextHdLabel`,`calCursor`,`calendarCard` → views/today.js | OI | T008 | FR001 | js/views/today.js | TEST; matches T003 at 390  · DONE |
+| T010 | Move fluid (`DRINKS`,`FOODS`,`addDrink`,`tiles`,`drinkGrid`), weight, meds, session (`hdBpCard`) views | HB | T009 | FR001 | js/views/* | TEST; each tab renders  · DONE |
+| T011 | Move views/settings.js | OI | T010 | FR001 | js/views/settings.js | TEST; language, schedule, USDA key, wipe-all confirm  · DONE |
+| T012 | Move diet-view.js → views/diet.js + re-export shim | HB | T011 | FR001 | js/views/diet.js, js/diet-view.js | TEST; diet, CSV import, lab JSON import, manual lab  · DONE |
+| T013 | Move features/backup (`downloadFile`,`exportBackup`,`importBackup`), cal-export (`calFile`,`cal*`), print, install | HB | T012 | FR001 | js/features/* | TEST; export/import roundtrip, ICS, print preview  · DONE |
+| T014 | Move `view`,`VIEWS`,`go`,`render` → router.js; `onClick` → events.js; boot/SW register → main.js; delete app.js; index.html → main.js | OI | T013 | FR001, C002 | js/main.js, router.js, events.js, index.html | TEST; full click-through  · DONE 0565ec6 — click-through parity vs baseline |
+| T015 | Symbol + module-graph check script (each baseline app.js symbol in exactly one module, no cycles, imports resolve, ≤400 lines) | HB | T014 | NFR001, plan §3.1 | scripts/check-modules.mjs | exit 0  · DONE 4bf099b — PASS (store.js, views/diet.js >400 known) |
+| T016 | Review parity + `esc` audit of innerHTML | OR | T015 | C001, plan §7 | — | review notes; fixes by OI  · DONE 4bf099b — ids esc()d |
+| T017 | Split CSS into tokens/base/layout/components/views/print (link tags) | HB | T016 | FR005 | css/*, index.html | no visual diff vs T003 at 390  · DONE 600fb4e — no visual diff 5×7 |
+| T018 | manifest `orientation` portrait → any | HB | T017 | US003 | manifest.webmanifest | installed PWA rotates on tablet  · DONE 824b156 |
+| T019 | Breakpoints 768/1024; grid (Today: status+fluid left, reminders+trends right); bottom nav all sizes | OI | T018 | FR005, C009, OQ-06 | css/layout.css, views.css | A004  · DONE 8a89cda — 0 overflow 5×7 |
+| T020 | Header subtitle fix at 390 | OI | T019 | FR007 | css/* | A006  · DONE 8a89cda |
+| T021 | Fluid card over-limit icon + label | OI | T020 | FR006, C007 | js/views/today.js, css | A005 + unit test  · DONE 8af176d — today.test.js |
+| T022 | Backup import resets all labs/limits to `pending` (approval by clinician login after F-SYNC-01; PIN until T060) | OI | T021 | FR008, US005, OQ-03 | js/features/backup.js, js/store.js | A007 in tests/backup.test.js  · DONE 1fde8e2 — backup.test.js (A007 browser-verified) |
+| T023 | Backup import validation (types, size cap) | OI | T022 | plan §7 | js/features/backup.js | tests/backup.test.js  · DONE 1fde8e2 |
+| T024 | Food search offline message; cached/custom foods usable | OI | T023 | FR009 | js/views/diet.js | A011  · DONE 192be49 — offline icon+text, custom foods searchable |
+| T025 | Print stylesheet tablet/desktop | HB | T024 | FR013 | css/print.css | A013 (A4 + Letter)  · DONE 833b6fc — A4/Letter PDFs, no clipping |
+| T026 | CSP meta (styles `'unsafe-inline'`, `script-src 'self'`) — Google origins added later in T062 | OI | T025 | plan §7 | index.html | no CSP console errors; no visual diff vs T003 at 390; food search works online  · DONE bc3b507 — 0 CSP errors; online food search fails identically on baseline (USDA 400 / OFF CORS) |
+| T027 | sw.js: module SHELL, `sktidvo-v8`, food API network-only, guarded update toast; SHELL test | OI | T026 | FR003, FR012, plan §6 | sw.js, js/main.js, tests/sw.test.js | test covers `./`, manifest, assets, js/**, css/*  · DONE 572a9ab — 162/162; offline reload OK |
+| T028 | Relative-path audit | HB | T027 | FR004, C006 | — | grep root-absolute URLs = 0  · DONE — root-absolute URLs = 0 |
 | T030 | `.github/workflows/pages.yml` (upload-pages-artifact, web files only) + `.nojekyll` | HB | T028 | FR011, OQ-02 | .github/workflows/pages.yml | A012 artifact listing |
 | T031 | Data-compat test with T004 fixture (rerun at T032) | OR | T014 | C005, A008 | tests/ | counts equal |
 | T032 | Feature parity click-through (spec §2) + rerun T031 | OR | T031, T030 | C001 | — | checklist all pass |
