@@ -5,25 +5,59 @@
    Bump CACHE on every release or patients keep the old shell.
    =================================================================== */
 
-const CACHE = 'sktidvo-v7';
+const CACHE = 'sktidvo-v8';
 
+// Every module in the tree must be here (tests/sw.test.js checks it).
 const SHELL = [
   './',
   './index.html',
-  './css/styles.css',
-  './js/app.js',
-  './js/store.js',
-  './js/i18n.js',
-  './js/calendar.js',
-  './js/food.js',
-  './js/limits.js',
-  './js/diet-view.js',
   './manifest.webmanifest',
+  './css/tokens.css',
+  './css/base.css',
+  './css/layout.css',
+  './css/components.css',
+  './css/views.css',
+  './css/print.css',
+  './js/calendar.js',
+  './js/diet-view.js',
+  './js/events.js',
+  './js/features/backup.js',
+  './js/features/cal-export.js',
+  './js/features/install.js',
+  './js/features/print.js',
+  './js/food.js',
+  './js/i18n.js',
+  './js/limits.js',
+  './js/main.js',
+  './js/router.js',
+  './js/sheets/calibrate.js',
+  './js/sheets/drink.js',
+  './js/sheets/hdbp.js',
+  './js/sheets/medication.js',
+  './js/sheets/session.js',
+  './js/sheets/weight.js',
+  './js/store.js',
+  './js/ui/charts.js',
+  './js/ui/format.js',
+  './js/ui/icons.js',
+  './js/ui/sheet.js',
+  './js/ui/theme.js',
+  './js/ui/toast.js',
+  './js/views/diet.js',
+  './js/views/fluid.js',
+  './js/views/meds.js',
+  './js/views/session.js',
+  './js/views/settings.js',
+  './js/views/today.js',
+  './js/views/weight.js',
   './assets/icon.svg',
+  './assets/icon-maskable.svg',
   './assets/icon-512.png',
   './assets/icon-maskable-512.png',
   './assets/logo.png'
 ];
+
+const FOOD_ORIGINS = ['https://api.nal.usda.gov', 'https://world.openfoodfacts.org'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -52,6 +86,10 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
+
+  // Food search is live data: network-only. The app keeps its own food
+  // cache in localStorage, so offline search still works (FR009).
+  if (FOOD_ORIGINS.includes(url.origin)) return;
 
   // Google Fonts are a nicety. Cache them opportunistically; never block on them.
   const sameOrigin = url.origin === location.origin;

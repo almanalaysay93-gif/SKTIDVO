@@ -8,6 +8,7 @@ import { setLang, t } from './i18n.js';
 import { render, setView, view, VIEWS } from './router.js';
 import { $ } from './ui/format.js';
 import { applyTheme } from './ui/theme.js';
+import { toast } from './ui/toast.js';
 
 export function wireNetwork() {
   const show = () => {
@@ -82,6 +83,13 @@ export function boot() {
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => { /* fine offline */ });
+    // FR012: a new version took over. Only announce it when an old worker was
+    // already in control — the first install also fires controllerchange
+    // (clients.claim) and must stay silent.
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) toast(t('app.updated'));
+    }, { once: true });
   }
 }
 
