@@ -941,6 +941,13 @@ export function buildSummary() {
   };
 }
 
+/* ---------- device-local reminders (T033; never synced, never in backups) ---------- */
+
+export function getLastBackupAt() { const v = readRaw(KEYS.lastBackupAt, null); return Number.isFinite(v) ? v : null; }
+export function setLastBackupAt(ms = Date.now()) { writeRaw(KEYS.lastBackupAt, ms); }
+export function isA2hsDismissed() { return readRaw(KEYS.a2hsDismissed, false) === true; }
+export function dismissA2hs() { writeRaw(KEYS.a2hsDismissed, true); emit(); }
+
 export function wipeAll() {
   Object.values(KEYS).forEach(k => localStorage.removeItem(k));
   emit();

@@ -341,6 +341,10 @@ const STRINGS = {
     'install.ios': 'Sa iPhone: pislita ang Share, dayon "Add to Home Screen".',
     'install.manual': 'Sa Chrome: pislita ang menu sa taas nga tuo, dayon "Install app" o "Add to Home screen".',
     'install.done': 'Naka-install na.',
+    'a2hs.ios': 'Ibutang sa home screen: pislita ang Share, dayon "Add to Home Screen".',
+    'a2hs.dismiss': 'Ayaw na ipakita',
+    'backup.reminder': 'Wala pa kay bag-ong backup sulod sa 14 ka adlaw. I-save ang backup file karon.',
+    'backup.now': 'I-save ang backup karon',
 
     'legal.disclaimer': 'Kini nga app nagpakita lang sa mga target nga gihatag sa imong SKTI care team. Dili kini naghatag og tambag medikal. Kung dili maayo imong pamati, tawag dayon sa SKTI.',
     'legal.privacy': 'Ang tanan nimong datos naa ra sa imong telepono. Walay awtomatikong gipadala sa internet — ikaw ra ang makadesisyon kung i-export o i-import sa Google Calendar.'
@@ -680,6 +684,10 @@ const STRINGS = {
     'install.ios': 'Sa iPhone: pindutin ang Share, tapos "Add to Home Screen".',
     'install.manual': 'Sa Chrome: pindutin ang menu sa kanang itaas, tapos "Install app" o "Add to Home screen".',
     'install.done': 'Naka-install na.',
+    'a2hs.ios': 'Ilagay sa home screen: pindutin ang Share, tapos "Add to Home Screen".',
+    'a2hs.dismiss': 'Huwag nang ipakita',
+    'backup.reminder': 'Wala ka pang bagong backup sa loob ng 14 na araw. I-save ang backup file ngayon.',
+    'backup.now': 'I-save ang backup ngayon',
 
     'legal.disclaimer': 'Ipinapakita lang ng app na ito ang mga target na ibinigay ng iyong SKTI care team. Hindi ito nagbibigay ng payong medikal. Kung masama ang pakiramdam mo, tumawag agad sa SKTI.',
     'legal.privacy': 'Lahat ng datos mo ay nasa telepono mo lang. Walang awtomatikong ipinapadala sa internet — ikaw lang ang makakapagpasya kung i-e-export o i-i-import sa Google Calendar.'
@@ -1019,6 +1027,10 @@ const STRINGS = {
     'install.ios': 'On iPhone: tap Share, then "Add to Home Screen".',
     'install.manual': 'In Chrome: tap the menu at the top right, then "Install app" or "Add to Home screen".',
     'install.done': 'Already installed.',
+    'a2hs.ios': 'Add to your home screen: tap Share, then "Add to Home Screen".',
+    'a2hs.dismiss': 'Don\'t show again',
+    'backup.reminder': 'No backup in the last 14 days. Save a backup file now.',
+    'backup.now': 'Save a backup now',
 
     'legal.disclaimer': 'This app only shows the targets your SKTI care team gave you. It does not give medical advice. If you feel unwell, call SKTI.',
     'legal.privacy': 'All your data stays on your phone. Nothing is sent anywhere automatically — only you can choose to export it or import it into Google Calendar.'

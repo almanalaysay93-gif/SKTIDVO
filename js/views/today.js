@@ -6,6 +6,22 @@ import { fluidWeekChart, medsTodayChart, sessionUfChart, weightTrendChart } from
 import { esc, localeTag, nf } from '../ui/format.js';
 import { icon } from '../ui/icons.js';
 import { Diet } from './diet.js';
+import { isIos, isStandalone, shouldShowA2hs, shouldShowBackupReminder } from '../features/install.js';
+
+/* T033 banners. signedIn stays false until T059 wires the sync state. */
+export function reminderBanners(now = Date.now()) {
+  let out = '';
+  if (shouldShowA2hs({ ios: isIos(), standalone: isStandalone(), dismissed: S.isA2hsDismissed() })) {
+    out += `<p class="banner" id="a2hsBanner">${icon('download')}<span>${esc(t('a2hs.ios'))}</span>
+      <button type="button" class="row__btn" id="btnA2hsDismiss" aria-label="${esc(t('a2hs.dismiss'))}">${icon('x')}</button></p>`;
+  }
+  const hasData = S.getWeights().length + S.getSessions().length + S.getIntake().length > 0;
+  if (shouldShowBackupReminder({ lastBackupAt: S.getLastBackupAt(), now, hasData })) {
+    out += `<p class="banner" id="backupBanner">${icon('alert')}<span>${esc(t('backup.reminder'))}</span>
+      <button type="button" class="row__btn" id="btnExport" aria-label="${esc(t('backup.now'))}">${icon('download')}</button></p>`;
+  }
+  return out;
+}
 
 export let calCursor = new Date();   // month currently shown on Today's calendar
 export function setCalCursor(d) { calCursor = d; }
@@ -269,6 +285,7 @@ export function viewToday() {
   return `
   <div class="view view--today">
     <div class="today-col today-col--main">
+      ${reminderBanners()}
       ${nudge}
       ${status}
       <div class="today-grid-2">

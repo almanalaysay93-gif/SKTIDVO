@@ -20,6 +20,7 @@ export function downloadFile(filename, mime, text) {
 export function exportBackup() {
   downloadFile(S.exportFilename(), 'application/json',
                JSON.stringify(S.exportAll(), null, 2));
+  S.setLastBackupAt();
   toast(t('data.exported'));
 }
 

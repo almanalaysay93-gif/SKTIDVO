@@ -24,7 +24,7 @@ export function onClick(e) {
     '[data-del-intake],[data-del-weight],[data-del-session],[data-empty-action],' +
     '[data-toggle-med],[data-edit-med],[data-toggle-chk],[data-del-hdbp],[data-cal-nav],' +
     '#btnWeigh,#btnSession,#btnSettings,#btnAddMed,#btnLogHdBp,#pSave,#btnPrint,#btnWipe,' +
-    '#btnCalibrate,#btnExport,#btnImport,#btnInstall,' +
+    '#btnCalibrate,#btnExport,#btnImport,#btnInstall,#btnA2hsDismiss,' +
     '#btnCalSchedule,#btnCalWeigh,#btnCalSessions,#btnCalGoogle');
   if (!el) return;
 
@@ -53,7 +53,8 @@ export function onClick(e) {
     return toast(t('common.delete'), t('common.undo'), () => S.restoreHdBp(entry));
   }
   if (el.id === 'btnCalibrate') return sheetCalibrate();
-  if (el.id === 'btnExport') return exportBackup();
+  if (el.id === 'btnExport') { exportBackup(); return render(); }
+  if (el.id === 'btnA2hsDismiss') return S.dismissA2hs();
   if (el.id === 'btnImport') return $('#importFile').click();
 
   if (el.id === 'btnInstall') {

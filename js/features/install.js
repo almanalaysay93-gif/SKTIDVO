@@ -34,3 +34,22 @@ export async function syncPersistUi() {
                  : ok === false ? t('data.persistOff')
                  : '—';
 }
+
+/* ---------- T033: iOS A2HS prompt + backup reminder (FR014, OQ-09) ---------- */
+
+export const BACKUP_REMINDER_MS = 14 * 24 * 60 * 60 * 1000;   // plan §14.3a
+
+export function isIos(ua = navigator.userAgent) {
+  return /iphone|ipad|ipod/i.test(String(ua));
+}
+
+/** iOS never fires beforeinstallprompt, so Safari users get a one-time hint. */
+export function shouldShowA2hs({ ios, standalone, dismissed }) {
+  return !!ios && !standalone && !dismissed;
+}
+
+/** Shown only when NOT signed in to sync (T059 passes the real signed-in state). */
+export function shouldShowBackupReminder({ lastBackupAt, now, signedIn = false, hasData }) {
+  if (signedIn || !hasData) return false;
+  return !Number.isFinite(lastBackupAt) || now - lastBackupAt >= BACKUP_REMINDER_MS;
+}
