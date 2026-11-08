@@ -35,6 +35,7 @@ function wireBadge() {
 }
 
 export function boot() {
+  S.migrateV2();   // F-SYNC-01 schema v2 (idempotent)
   wireBadge();
   const p = S.getProfile();
   setLang(p.lang);

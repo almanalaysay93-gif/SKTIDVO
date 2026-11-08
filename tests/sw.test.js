@@ -1,4 +1,4 @@
-/* Tests for sw.js SHELL completeness — FR003 / T027. Node-only (reads files). */
+/* Tests for sw.js SHELL completeness â€” FR003 / T027. Node-only (reads files). */
 
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { suite, test, eq } from './harness.js';
@@ -22,7 +22,7 @@ export function runSwTests() {
   const shell = [...src.match(/const SHELL = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
   const has = p => shell.includes('./' + p);
 
-  test('cache name bumped to sktidvo-v8', () => eq(/const CACHE = 'sktidvo-v8'/.test(src), true));
+  test('cache name bumped to sktidvo-v9', () => eq(/const CACHE = 'sktidvo-v9'/.test(src), true));
   test('SHELL has ./, index.html, manifest', () => {
     eq(shell.includes('./'), true); eq(has('index.html'), true); eq(has('manifest.webmanifest'), true);
   });

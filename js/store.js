@@ -4,6 +4,9 @@
    can migrate instead of wiping a patient's history.
    =================================================================== */
 
+import { contentKey, newDeviceId, stableJson, stamp, stripMeta } from './sync/meta.js';
+import { enqueue, loadOutbox, saveOutbox } from './sync/queue.js';
+
 const NS = 'skti.v1.';
 const KEYS = {
   profile:     NS + 'profile',
@@ -19,7 +22,15 @@ const KEYS = {
   foodCache:   NS + 'food_cache',
   labs:        NS + 'labs',
   dietLimits:  NS + 'diet_limits',
-  clinician:   NS + 'clinician'   // PIN hash + approver; NOT in backups
+  clinician:   NS + 'clinician',  // PIN hash + approver; NOT in backups
+  // F-SYNC-01 (device-local, never synced, never in backups)
+  deviceId:    NS + 'deviceId',
+  schema:      NS + 'schema',
+  recMeta:     NS + 'rec_meta',
+  outbox:      NS + 'outbox',
+  syncState:   NS + 'syncState',
+  a2hsDismissed: NS + 'a2hsDismissed',
+  lastBackupAt:  NS + 'lastBackupAt'
 };
 
 const DEFAULT_PROFILE = {
@@ -53,7 +64,7 @@ const DEFAULT_PROFILE = {
 
 /* ---------- low level ---------- */
 
-function read(key, fallback) {
+function readRaw(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
@@ -63,13 +74,162 @@ function read(key, fallback) {
   }
 }
 
-function write(key, value) {
+function writeRaw(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch {
     return false;   // quota or private-mode; caller surfaces this
   }
+}
+
+/* ---------- sync metadata layer (F-SYNC-01, migration v2) ----------
+   List entities keep tombstones in storage; read() hides them, so every
+   getter is unchanged. write() diffs against storage: changed/new records
+   are stamped (updatedAt/deviceId/deleted:false, syncedAt kept) and queued
+   in the outbox; records that disappeared become tombstones. Single-record
+   entities keep their shape; their metadata lives in KEYS.recMeta. */
+
+const LIST_ENTITY = {
+  [KEYS.weights]: 'weights', [KEYS.intake]: 'intake', [KEYS.sessions]: 'sessions',
+  [KEYS.medications]: 'medications', [KEYS.hdBp]: 'hdBp', [KEYS.foodsCustom]: 'customFoods',
+  [KEYS.dietLog]: 'dietLog', [KEYS.labs]: 'labs'
+};
+const SINGLE_ENTITY = {
+  [KEYS.profile]: 'profile', [KEYS.medLogs]: 'medLogs',
+  [KEYS.checklists]: 'checklist', [KEYS.dietLimits]: 'limits'
+};
+export const ENTITY_KEY = Object.fromEntries(
+  [...Object.entries(LIST_ENTITY), ...Object.entries(SINGLE_ENTITY)].map(([k, e]) => [e, k]));
+
+export function deviceId() {
+  let id = readRaw(KEYS.deviceId, null);
+  if (typeof id !== 'string' || !/^[0-9a-f]{32}$/.test(id)) {
+    id = newDeviceId();
+    writeRaw(KEYS.deviceId, id);
+  }
+  return id;
+}
+
+function queue(entity, id) {
+  saveOutbox(enqueue(loadOutbox(localStorage), entity, id), localStorage);
+}
+
+function read(key, fallback) {
+  const v = readRaw(key, fallback);
+  return LIST_ENTITY[key] && Array.isArray(v) ? v.filter(r => !(r && r.deleted)) : v;
+}
+
+function write(key, value, { clearSynced = false } = {}) {
+  const now = Date.now();
+  if (LIST_ENTITY[key] && Array.isArray(value)) {
+    const entity = LIST_ENTITY[key];
+    const raw = readRaw(key, []);
+    const prev = new Map((Array.isArray(raw) ? raw : []).map(r => [r && r.id, r]));
+    const dev = deviceId();
+    const seen = new Set();
+    const out = [];
+    for (const v of value) {
+      const p = prev.get(v.id);
+      seen.add(v.id);
+      if (p && !p.deleted && p.updatedAt && contentKey(p) === contentKey(v) && !clearSynced) {
+        out.push({ ...stripMeta(v), updatedAt: p.updatedAt, deviceId: p.deviceId, deleted: false,
+                   ...(Number.isFinite(p.syncedAt) ? { syncedAt: p.syncedAt } : {}) });
+        continue;
+      }
+      out.push(stamp(v, { now, deviceId: dev, prev: clearSynced ? null : p }));
+      queue(entity, v.id);
+    }
+    for (const [id, p] of prev) {
+      if (seen.has(id) || !p) continue;
+      if (p.deleted) { out.push(p); continue; }
+      out.push(stamp(p, { now, deviceId: dev, deleted: true, prev: p }));
+      queue(entity, id);
+    }
+    return writeRaw(key, out);
+  }
+  if (SINGLE_ENTITY[key]) {
+    const entity = SINGLE_ENTITY[key];
+    const metas = readRaw(KEYS.recMeta, {});
+    const m = metas[entity];
+    const old = readRaw(key, undefined);
+    if (!m || clearSynced || old === undefined || stableJson(old) !== stableJson(value)) {
+      metas[entity] = { updatedAt: now, deviceId: deviceId(),
+        ...(!clearSynced && m && Number.isFinite(m.syncedAt) ? { syncedAt: m.syncedAt } : {}) };
+      writeRaw(KEYS.recMeta, metas);
+      queue(entity, entity);
+    }
+  }
+  return writeRaw(key, value);
+}
+
+/* ---------- sync access (used by the sync engine; no re-enqueue) ---------- */
+
+/** All stored records of an entity, tombstones included, with metadata. */
+export function syncRecords(entity) {
+  const key = ENTITY_KEY[entity];
+  if (!key) return [];
+  if (LIST_ENTITY[key]) { const v = readRaw(key, []); return Array.isArray(v) ? v : []; }
+  const m = readRaw(KEYS.recMeta, {})[entity];
+  const v = readRaw(key, undefined);
+  if (v === undefined || !m) return [];
+  return [{ id: entity, value: v, deleted: false, ...m }];
+}
+
+/** Replace stored records from a merge result without queueing them. */
+export function applySyncRecords(entity, records) {
+  const key = ENTITY_KEY[entity];
+  if (!key) return false;
+  if (LIST_ENTITY[key]) { writeRaw(key, records); emit(); return true; }
+  const r = records[0];
+  if (!r) return false;
+  const metas = readRaw(KEYS.recMeta, {});
+  const { value, id, deleted, ...meta } = r;
+  metas[entity] = meta;
+  writeRaw(KEYS.recMeta, metas);
+  writeRaw(key, value);
+  emit();
+  return true;
+}
+
+export const SCHEMA_VERSION = 2;
+
+/**
+ * Migration v2 (T048, plan §14.2). Idempotent. Stamps existing records with
+ * updatedAt = ts || now, own deviceId, deleted:false and NO syncedAt (all
+ * pre-sync data is never-synced and is queued for the first push). Legacy
+ * approvals are reset to pending (OQ-14). Returns true if it ran.
+ */
+export function migrateV2(now = Date.now()) {
+  if (Number(readRaw(KEYS.schema, 1)) >= SCHEMA_VERSION) return false;
+  const dev = deviceId();
+  for (const [key, entity] of Object.entries(LIST_ENTITY)) {
+    const raw = readRaw(key, null);
+    if (!Array.isArray(raw)) continue;
+    const out = raw.filter(r => r && typeof r === 'object').map(r => {
+      const base = entity === 'labs' && r.status === 'approved'
+        ? { ...r, status: 'pending', approvedBy: null, approvedAt: null } : r;
+      if (Number.isFinite(base.updatedAt) && typeof base.deviceId === 'string') return base;
+      const { syncedAt, ...rest } = base;
+      return { ...rest, updatedAt: Number.isFinite(r.ts) && r.ts > 0 ? r.ts : now,
+               deviceId: dev, deleted: !!r.deleted };
+    });
+    writeRaw(key, out);
+    out.forEach(r => queue(entity, r.id));
+  }
+  const limits = readRaw(KEYS.dietLimits, null);
+  if (limits && limits.current) {
+    writeRaw(KEYS.dietLimits, resetApprovals([], { pending: null, rules: {}, ...limits }).limits);
+  }
+  const metas = readRaw(KEYS.recMeta, {});
+  for (const [key, entity] of Object.entries(SINGLE_ENTITY)) {
+    if (localStorage.getItem(key) === null || metas[entity]) continue;
+    metas[entity] = { updatedAt: now, deviceId: dev };
+    queue(entity, entity);
+  }
+  writeRaw(KEYS.recMeta, metas);
+  writeRaw(KEYS.schema, SCHEMA_VERSION);
+  return true;
 }
 
 const listeners = new Set();
@@ -910,18 +1070,18 @@ export function importAll(data) {
   const reset = resetApprovals(next.labs, next.dietLimits);
   next.labs = reset.labs;
   next.dietLimits = reset.limits;
-  write(KEYS.profile,     next.profile);
-  write(KEYS.weights,     next.weights);
-  write(KEYS.intake,      next.intake);
-  write(KEYS.sessions,    next.sessions);
-  write(KEYS.medications, next.medications);
-  write(KEYS.medLogs,     next.medLogs);
-  write(KEYS.hdBp,        next.hdBp);
-  write(KEYS.foodsCustom, next.foodsCustom);
-  write(KEYS.dietLog,     next.dietLog);
-  write(KEYS.foodCache,   next.foodCache);
-  write(KEYS.labs,        next.labs);
-  write(KEYS.dietLimits,  next.dietLimits);
+  write(KEYS.profile,     next.profile, { clearSynced: true });
+  write(KEYS.weights,     next.weights, { clearSynced: true });
+  write(KEYS.intake,      next.intake, { clearSynced: true });
+  write(KEYS.sessions,    next.sessions, { clearSynced: true });
+  write(KEYS.medications, next.medications, { clearSynced: true });
+  write(KEYS.medLogs,     next.medLogs, { clearSynced: true });
+  write(KEYS.hdBp,        next.hdBp, { clearSynced: true });
+  write(KEYS.foodsCustom, next.foodsCustom, { clearSynced: true });
+  write(KEYS.dietLog,     next.dietLog, { clearSynced: true });
+  write(KEYS.foodCache,   next.foodCache, { clearSynced: true });
+  write(KEYS.labs,        next.labs, { clearSynced: true });
+  write(KEYS.dietLimits,  next.dietLimits, { clearSynced: true });
   emit();
   return {
     weights: next.weights.length,
