@@ -49,3 +49,35 @@ Note: setup() deletes all existing triggers of this script project before creati
 
 ## Changes after first deploy (stage 3)
 New ops `whoami`, `patientRecords` (clinician) and a server-side consent gate (`no_consent` for push/pull). Redeploy: Manage deployments → Edit → New version (keeps the /exec URL).
+
+## Readable tabs (for clinicians)
+
+The script keeps two kinds of tabs.
+
+**Raw tabs (do NOT edit by hand unless you know the sync rules):** `profile, weights, intake, sessions, medications, medLogs, checklist, hdBp, dietLog, customFoods, labs, limits`. Columns `email,id,updatedAt,deviceId,deleted,serverSeq,serverUpdatedAt,json`. These are the sync source of truth. Do not rename, reorder, sort or delete columns or rows in them; that can break sync for every phone.
+
+**View tabs (read these):** rebuilt automatically from the raw tabs after every sync, approval or clinician edit. Every row starts with **Date** (YYYY-MM-DD, Asia/Manila), **Time** (HH:MM, Manila), **Patient name** (from the patient's profile; the email when no name is set), **Patient email**, and ends with **Details** (any other fields as `key: value; ...` so nothing is lost). Rows are sorted by Date, then Patient name, then Time. Deleted entries are not shown. Anything typed into a view tab is overwritten at the next refresh.
+
+| View tab | From raw tab | Key columns |
+|---|---|---|
+| Fluid | intake | Intake ml, Drink |
+| Weight | weights | Weight kg |
+| Dialysis | sessions | Pre weight kg, Post weight kg, UF L, BP sys, BP dia |
+| Meds | medications | Medicine, Dose, Timing, Active, Hold on dialysis, Notes (Date = last change) |
+| Med log | medLogs | one row per day and medicine slot: Medicine slot, Taken (yes/no); no time |
+| Checklist log | checklist | one row per day and item: Item, Done (yes/no); no time |
+| BP | hdBp | Sys, Dia, Pulse, Note |
+| Diet | dietLog | Food, Grams, Sodium mg, Potassium mg, Phosphorus mg, Protein g, Water g (for the grams eaten), Source |
+| Custom foods | customFoods | Food, nutrients per 100 g, Source |
+| Lab results | labs | Lab date, Values (`analyte: value unit; ...`), Status, Approved by, Approved at |
+| Diet limits | limits | Current (approved), Pending, Approved by (Date = last change) |
+| Patients | profile | Dry weight kg, Fluid allowance ml, IDWG limit kg, Session time (Date = last change) |
+
+Names differ from the raw tab names on purpose: Google Sheets tab names are case-insensitive, so "Labs" would collide with `labs`.
+
+How it refreshes: the touched entity's view is rebuilt from its raw tab (one read, one clear, one write). A profile change rebuilds all views so names update. The daily job also rebuilds all views. Clinic scale (a few thousand rows per tab) stays well inside the 6 min/execution limit; if a refresh fails it is logged in `audit` as `viewRefresh` and the sync itself still succeeds. Access in the app is unchanged: patients still only receive their own records; the sheet itself stays restricted to the owners.
+
+### After updating the script (one time)
+
+1. Paste the new `Code.gs` and `lib.gs`, then Deploy → Manage deployments → Edit → Version: New version → Deploy (same /exec URL).
+2. In the editor select `rebuildViews` and click Run to build the view tabs from data already in the raw tabs. Otherwise each view appears after the next sync of that entity.

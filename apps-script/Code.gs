@@ -81,6 +81,7 @@ function push_(email, b, now, clin) {
       var key = u.entity + '|' + u.record.id;
       writeRow_(u.entity, email, u.record, nextSeq_(), now, where[key]);
     });
+    if (res.upserts.length) refreshViews_(Object.keys(ents));
     return { ok: true, code: 'ok', count: res.upserts.length,
       data: { accepted: res.accepted, ignored: res.ignored, normalized: res.normalized, cursor: currentSeq_() } };
   });
@@ -107,6 +108,7 @@ function approve_(clinEmail, b, now) {
     if (!hit) return { ok: false, code: 'not_found' };
     var rec = approveRecord(b.entity, hit.rec, b.status, clinEmail, now);
     writeRow_(b.entity, target, rec, nextSeq_(), now, hit.row);
+    refreshViews_([b.entity]);
     return { ok: true, code: 'ok', count: 1, data: { record: rec } };
   });
 }
@@ -117,6 +119,7 @@ function clinicianEdit_(clinEmail, b, now) {
     var hit = rowsFor_(b.entity, target).filter(function (r) { return r.rec.id === b.record.id; })[0];
     var rec = clinicianEditRecord(b.entity, b.record, clinEmail, now);
     writeRow_(b.entity, target, rec, nextSeq_(), now, hit && hit.row);
+    refreshViews_([b.entity]);
     return { ok: true, code: 'ok', count: 1, data: { record: rec } };
   });
 }
@@ -159,6 +162,7 @@ function deleteMe_(email) {
     LIB.ENTITIES.concat(['consent']).forEach(function (name) {
       counts[name] = deleteRowsWhere_(sheet_(name), function (row) { return row[0] === email; });
     });
+    refreshViews_(LIB.ENTITIES);
     return { ok: true, code: 'ok', count: 1, data: { deleted: counts } };
   });
 }
@@ -332,6 +336,7 @@ function dailyJob() {
       });
       if (purged) { meta_('purgedBefore:' + email, Math.max(watermark_(email), cutoff)); audit_(email, 'tombstonePurge', purged, 'ok'); }
     });
+    refreshViews_(LIB.ENTITIES);
   });
 }
 
@@ -352,6 +357,7 @@ function onSheetEdit(e) {
   try { editor = (e.user && e.user.getEmail && e.user.getEmail()) || Session.getActiveUser().getEmail() || ''; } catch (err) { editor = ''; }
   withLock_(function () {
     for (var row = Math.max(2, r0); row < r0 + n; row++) stampRow_(sh, ent, row, Date.now());
+    refreshViews_([ent]);
   });
   audit_(editor || 'unknown owner', 'sheetEdit:' + ent, n, 'ok');
 }
@@ -378,5 +384,46 @@ function sweepSheetEdits_(now) {
     if (last < 2) return;
     var seqs = sh.getRange(2, C.serverSeq + 1, last - 1, 1).getValues();
     for (var i = 0; i < seqs.length; i++) if (seqs[i][0] === '' || seqs[i][0] === null) stampRow_(sh, ent, i + 2, now);
+  });
+}
+
+/* ---------- readable view tabs (derived; raw tabs stay the source of truth) ----------
+   After each write, the touched entity's view tab is rebuilt from its raw tab
+   (one read of the raw tab + the profile tab, one clearContents + one setValues).
+   A profile change renames the patient everywhere, so it rebuilds all views.
+   Fine at clinic scale; a view failure is audited and never fails a sync. */
+
+function refreshViews_(entities) {
+  try {
+    var list = entities.indexOf('profile') >= 0 ? LIB.ENTITIES : entities;
+    var names = patientNames_();
+    list.forEach(function (ent) { if (VIEWS[ent]) writeView_(ent, names); });
+  } catch (err) {
+    audit_('system', 'viewRefresh', 0, 'error: ' + (err && err.message));
+  }
+}
+
+function patientNames_() {
+  var names = {};
+  rowsFor_('profile', null).forEach(function (r) {
+    if (!r.rec.deleted) names[r.email] = (r.rec.value && r.rec.value.name) || '';
+  });
+  return names;
+}
+
+function writeView_(ent, names) {
+  var v = buildView(ent, rowsFor_(ent, null), names);
+  var sh = sheet_(v.tab);
+  sh.clearContents();
+  var data = [v.header].concat(v.rows);
+  sh.getRange(1, 1, data.length, v.header.length).setValues(data);
+  sh.setFrozenRows(1);
+}
+
+/** Owner runs once from the editor after redeploying: builds every view tab from existing raw rows. */
+function rebuildViews() {
+  withLock_(function () {
+    var names = patientNames_();
+    LIB.ENTITIES.forEach(function (ent) { writeView_(ent, names); });
   });
 }

@@ -270,10 +270,176 @@ function consentGiven(rows, email) {
   return !!last && last[3] === 'given';
 }
 
+/* ---------- readable view tabs (derived from raw tabs; never synced) ----------
+   One tab per entity, rows = [Date, Time, Patient name, Patient email, ...key fields, Details].
+   Dates/times are Asia/Manila (UTC+8, no DST). Unknown fields go to Details. */
+
+var VIEW_TZ_OFFSET_MS = 8 * 3600000;
+var VIEW_META = ['id', 'updatedAt', 'deviceId', 'deleted', 'syncedAt', 'neverSynced', 'serverSeq', 'serverUpdatedAt'];
+var NUT_LABELS = { na: 'Sodium mg', k: 'Potassium mg', p: 'Phosphorus mg', protein: 'Protein g', water: 'Water g' };
+
+function pad2_(n) { return (n < 10 ? '0' : '') + n; }
+
+/** ms → {date:'YYYY-MM-DD', time:'HH:MM'} in Asia/Manila. Bad input → empty strings. */
+function manilaDateTime(ms) {
+  var n = Number(ms);
+  if (!isFinite(n) || n <= 0) return { date: '', time: '' };
+  var d = new Date(n + VIEW_TZ_OFFSET_MS);
+  return { date: d.getUTCFullYear() + '-' + pad2_(d.getUTCMonth() + 1) + '-' + pad2_(d.getUTCDate()),
+    time: pad2_(d.getUTCHours()) + ':' + pad2_(d.getUTCMinutes()) };
+}
+
+function viewVal_(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return v;
+}
+
+/** Remaining fields as "key: value; key: value". Never drops a field. */
+function viewDetails(obj, usedKeys, keepMeta) {
+  if (!obj || typeof obj !== 'object') return '';
+  var out = [];
+  Object.keys(obj).sort().forEach(function (k) {
+    if (usedKeys.indexOf(k) >= 0 || (!keepMeta && VIEW_META.indexOf(k) >= 0)) return;
+    var v = obj[k];
+    if (v === null || v === undefined || v === '') return;
+    out.push(k + ': ' + (typeof v === 'object' ? JSON.stringify(v) : String(v)));
+  });
+  return out.join('; ');
+}
+
+function scaled_(per100, key, grams) {
+  var v = per100 && per100[key];
+  if (v === null || v === undefined || !isFinite(Number(v)) || !isFinite(Number(grams))) return '';
+  return Math.round(Number(v) * Number(grams) / 100 * 10) / 10;
+}
+
+/** Tab name + key columns per entity. Names avoid the raw tab names (sheet names are case-insensitive). */
+var VIEWS = {
+  intake: { tab: 'Fluid', cols: [['Intake ml', 'ml'], ['Drink', 'labelKey']] },
+  weights: { tab: 'Weight', cols: [['Weight kg', 'kg']] },
+  sessions: { tab: 'Dialysis', cols: [['Pre weight kg', 'preKg'], ['Post weight kg', 'postKg'], ['UF L', 'ufL'], ['BP sys', 'bpSys'], ['BP dia', 'bpDia']] },
+  medications: { tab: 'Meds', cols: [['Medicine', 'name'], ['Dose', 'dose'], ['Timing', 'timing'], ['Active', 'active'], ['Hold on dialysis', 'holdOnDialysis'], ['Notes', 'notes']] },
+  medLogs: { tab: 'Med log', cols: [['Medicine slot', 'slot'], ['Taken', 'taken']] },
+  checklist: { tab: 'Checklist log', cols: [['Item', 'text'], ['Done', 'done']] },
+  hdBp: { tab: 'BP', cols: [['Sys', 'sys'], ['Dia', 'dia'], ['Pulse', 'pulse'], ['Note', 'note']] },
+  dietLog: { tab: 'Diet', cols: [['Food', 'name'], ['Grams', 'grams'], ['Sodium mg', 'na'], ['Potassium mg', 'k'], ['Phosphorus mg', 'p'], ['Protein g', 'protein'], ['Water g', 'water'], ['Source', 'source']] },
+  customFoods: { tab: 'Custom foods', cols: [['Food', 'name'], ['Sodium mg/100g', 'na'], ['Potassium mg/100g', 'k'], ['Phosphorus mg/100g', 'p'], ['Protein g/100g', 'protein'], ['Water g/100g', 'water'], ['Source', 'source']] },
+  labs: { tab: 'Lab results', cols: [['Lab date', 'date'], ['Values', 'values'], ['Status', 'status'], ['Approved by', 'approvedBy'], ['Approved at', 'approvedAt']] },
+  limits: { tab: 'Diet limits', cols: [['Current (approved)', 'current'], ['Pending', 'pending'], ['Approved by', 'approvedBy']] },
+  profile: { tab: 'Patients', cols: [['Dry weight kg', 'dryWeightKg'], ['Fluid allowance ml', 'allowanceMl'], ['IDWG limit kg', 'idwgLimitKg'], ['Session time', 'sessionTime']] }
+};
+
+function viewHeader(entity) {
+  var v = VIEWS[entity];
+  return ['Date', 'Time', 'Patient name', 'Patient email'].concat(v.cols.map(function (c) { return c[0]; })).concat(['Details']);
+}
+
+/** Lab values {analyte:n} + units {analyte:'u'} → "Hgb: 10.2 g/dL; K: 5.1 mmol/L". */
+function labValuesText_(values, units) {
+  if (!values || typeof values !== 'object') return '';
+  units = units || {};
+  return Object.keys(values).sort().map(function (k) {
+    var v = values[k];
+    return k + ': ' + (typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)) + (units[k] ? ' ' + units[k] : '');
+  }).join('; ');
+}
+
+/**
+ * One raw record → readable view rows (array; [] for tombstones).
+ * List entities give one row; medLogs/checklist give one row per day+item.
+ */
+function viewRows(entity, rec, profileName, email) {
+  var cfg = VIEWS[entity];
+  if (!cfg || !rec || rec.deleted) return [];
+  var name = profileName || email || '';
+  var who = [name, email || ''];
+  var fallbackDt = manilaDateTime(rec.ts || rec.updatedAt);
+  function row(dt, vals, details) { return [dt.date, dt.time].concat(who).concat(vals).concat([details]); }
+
+  if (entity === 'medLogs' || entity === 'checklist') {
+    var byDay = (rec.value && typeof rec.value === 'object') ? rec.value : {};
+    var out = [];
+    Object.keys(byDay).sort().forEach(function (day) {
+      var dt = { date: String(day), time: '' };
+      var v = byDay[day];
+      if (entity === 'medLogs' && v && typeof v === 'object' && !Array.isArray(v)) {
+        Object.keys(v).sort().forEach(function (slot) { out.push(row(dt, [slot, v[slot] === true ? 'yes' : 'no'], '')); });
+      } else if (entity === 'checklist' && Array.isArray(v)) {
+        v.forEach(function (it) {
+          it = it || {};
+          out.push(row(dt, [viewVal_(it.text), it.done === true ? 'yes' : 'no'], viewDetails(it, ['text', 'done'], true)));
+        });
+      } else {
+        out.push(row(dt, ['', ''], 'raw: ' + JSON.stringify(v)));
+      }
+    });
+    var extra = viewDetails(rec, ['value']);
+    if (extra) out.push(row(fallbackDt, ['', ''], extra));
+    return out;
+  }
+
+  if (entity === 'limits' || entity === 'profile') {
+    var val = (rec.value && typeof rec.value === 'object') ? rec.value : {};
+    var used = cfg.cols.map(function (c) { return c[1]; });
+    var vals;
+    if (entity === 'limits') {
+      var cur = val.current || {};
+      vals = [val.current ? JSON.stringify(val.current) : '', val.pending ? JSON.stringify(val.pending) : '', viewVal_(cur.approvedBy)];
+    } else {
+      used = used.concat(['name']);
+      vals = cfg.cols.map(function (c) { return viewVal_(val[c[1]]); });
+    }
+    var det = [viewDetails(val, used), viewDetails(rec, ['value'])].filter(function (s) { return !!s; }).join('; ');
+    return [row(manilaDateTime(rec.updatedAt), vals, det)];
+  }
+
+  var dt = fallbackDt;
+  if (!dt.date && rec.day) dt = { date: String(rec.day), time: '' };
+  var usedKeys = cfg.cols.map(function (c) { return c[1]; }).concat(['ts', 'day']);
+  var values;
+  if (entity === 'dietLog') {
+    values = cfg.cols.map(function (c) {
+      if (NUT_LABELS[c[1]]) return scaled_(rec.per100, c[1], rec.grams);
+      return viewVal_(rec[c[1]]);
+    });
+    usedKeys.push('per100');
+  } else if (entity === 'customFoods') {
+    values = cfg.cols.map(function (c) { return NUT_LABELS[c[1]] ? viewVal_(rec.per100 && rec.per100[c[1]]) : viewVal_(rec[c[1]]); });
+    usedKeys.push('per100');
+  } else if (entity === 'labs') {
+    values = [viewVal_(rec.date), labValuesText_(rec.values, rec.units), viewVal_(rec.status), viewVal_(rec.approvedBy),
+      rec.approvedAt ? (function (x) { return x.date + ' ' + x.time; })(manilaDateTime(rec.approvedAt)) : ''];
+    usedKeys.push('units');
+  } else {
+    values = cfg.cols.map(function (c) { var v = rec[c[1]]; return typeof v === 'boolean' ? (v ? 'yes' : 'no') : viewVal_(v); });
+  }
+  return [row(dt, values, viewDetails(rec, usedKeys))];
+}
+
+/** Sort by Date, then Patient name (case-insensitive), then Time. Returns a new array. */
+function sortViewRows(rows) {
+  function cmp(a, b) { a = String(a); b = String(b); return a < b ? -1 : a > b ? 1 : 0; }
+  return rows.slice().sort(function (a, b) {
+    return cmp(a[0], b[0]) || cmp(String(a[2]).toLowerCase(), String(b[2]).toLowerCase()) || cmp(a[1], b[1]) || cmp(a[3], b[3]);
+  });
+}
+
+/** raw [{email, rec}] + {email: name} → {tab, header, rows} sorted. Pure. */
+function buildView(entity, raw, names) {
+  var rows = [];
+  (raw || []).forEach(function (r) {
+    rows = rows.concat(viewRows(entity, r.rec, (names || {})[r.email] || '', r.email));
+  });
+  return { tab: VIEWS[entity].tab, header: viewHeader(entity), rows: sortViewRows(rows) };
+}
+
 if (typeof module !== 'undefined') {
   module.exports = { LIB: LIB, verifyClaims: verifyClaims, accessTokenClaims: accessTokenClaims, authorize: authorize, validatePayload: validatePayload,
     lww: lww, forcePendingLabs: forcePendingLabs, rateLimitDecision: rateLimitDecision,
     purgeWatermarkDecision: purgeWatermarkDecision, cursorTooOld: cursorTooOld, applyPush: applyPush,
     approveRecord: approveRecord, clinicianEditRecord: clinicianEditRecord, retentionExpired: retentionExpired,
-    tombstonePurgeCutoff: tombstonePurgeCutoff, sheetEditStamp: sheetEditStamp, isClinician: isClinician, consentGiven: consentGiven };
+    tombstonePurgeCutoff: tombstonePurgeCutoff, sheetEditStamp: sheetEditStamp, isClinician: isClinician, consentGiven: consentGiven,
+    VIEWS: VIEWS, manilaDateTime: manilaDateTime, viewDetails: viewDetails, viewHeader: viewHeader,
+    viewRows: viewRows, sortViewRows: sortViewRows, buildView: buildView };
 }

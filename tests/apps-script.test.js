@@ -154,4 +154,68 @@ export function runAppsScriptTests() {
     eq(NOW - 10 * 86400e3 < cutoff, false);
     eq(L.cursorTooOld('pull', cutoff - 1, null, cutoff), true);
   });
+
+  // 2026-07-27 23:30 UTC = 2026-07-28 07:30 Manila
+  const T = Date.UTC(2026, 6, 27, 23, 30);
+
+  test('view: manilaDateTime is UTC+8 and empty for bad input', () => {
+    const d = L.manilaDateTime(T);
+    eq(d.date, '2026-07-28'); eq(d.time, '07:30');
+    eq(L.manilaDateTime(null).date, ''); eq(L.manilaDateTime('x').time, '');
+  });
+
+  test('view: fluid row = date, time, name, email, ml, drink, details', () => {
+    const r = L.viewRows('intake', rec('i1', T, { ts: T, day: '2026-07-28', ml: 250, labelKey: 'water' }), 'Juan', 'j@x');
+    eq(r.length, 1);
+    eq(JSON.stringify(r[0]), JSON.stringify(['2026-07-28', '07:30', 'Juan', 'j@x', 250, 'water', '']));
+    eq(L.viewHeader('intake').length, r[0].length);
+  });
+
+  test('view: name falls back to email; tombstones produce no rows', () => {
+    eq(L.viewRows('weights', rec('w', T, { ts: T, kg: 61.2 }), '', 'j@x')[0][2], 'j@x');
+    eq(L.viewRows('weights', rec('w', T, { ts: T, kg: 61.2, deleted: true }), 'J', 'j@x').length, 0);
+  });
+
+  test('view: unknown fields go to Details, never dropped', () => {
+    const r = L.viewRows('weights', rec('w', T, { ts: T, kg: 60, mood: 'ok', extra: { a: 1 } }), 'J', 'j@x')[0];
+    eq(r[r.length - 1], 'extra: {"a":1}; mood: ok');
+    eq(L.viewDetails({ id: 'x', updatedAt: 1, b: 2, a: null }, []), 'b: 2');
+  });
+
+  test('view: dialysis, labs, diet key fields', () => {
+    const s = L.viewRows('sessions', rec('s', T, { ts: T, preKg: 63, postKg: 61, ufL: 2, bpSys: 130, bpDia: 80 }), 'J', 'j@x')[0];
+    eq(JSON.stringify(s.slice(4, 9)), '[63,61,2,130,80]');
+    const l = L.viewRows('labs', rec('l', T, { ts: T, date: '2026-07-20', values: { K: 5.1 }, units: { K: 'mmol/L' },
+      status: 'approved', approvedBy: 'share@spmcdvo.net', approvedAt: T, origin: 'ocr' }), 'J', 'j@x')[0];
+    eq(l[4], '2026-07-20'); eq(l[5], 'K: 5.1 mmol/L'); eq(l[6], 'approved'); eq(l[7], 'share@spmcdvo.net');
+    eq(l[8], '2026-07-28 07:30'); eq(l[9], 'origin: ocr');
+    const d = L.viewRows('dietLog', rec('d', T, { ts: T, name: 'Rice', grams: 200, source: 'fdc', ref: '1',
+      per100: { na: 5, k: 35, p: 43, protein: 2.7, water: 68 } }), 'J', 'j@x')[0];
+    eq(JSON.stringify(d.slice(4, 12)), '["Rice",200,10,70,86,5.4,136,"fdc"]');
+    eq(d[12], 'ref: 1');
+  });
+
+  test('view: medLogs/checklist expand per day; profile row', () => {
+    const m = L.viewRows('medLogs', rec('medLogs', T, { value: { '2026-07-28': { m1_default: true, m2_default: false } } }), 'J', 'j@x');
+    eq(m.length, 2); eq(m[0][0], '2026-07-28'); eq(m[0][4], 'm1_default'); eq(m[0][5], 'yes'); eq(m[1][5], 'no');
+    const c = L.viewRows('checklist', rec('checklist', T, { value: { '2026-07-28': [{ id: 'chk-1', text: 'Weigh', done: true }] } }), 'J', 'j@x');
+    eq(c[0][4], 'Weigh'); eq(c[0][5], 'yes'); eq(c[0][6], 'id: chk-1');
+    const p = L.viewRows('profile', rec('profile', T, { value: { name: 'Juan', dryWeightKg: 60, allowanceMl: 1000, foo: 'bar' } }), 'Juan', 'j@x')[0];
+    eq(p[0], '2026-07-28'); eq(p[4], 60); eq(p[p.length - 1], 'foo: bar');
+  });
+
+  test('view: buildView sorts by date, then patient name, then time', () => {
+    const at = (h, d = 28) => Date.UTC(2026, 6, d - 1, h - 8 + 24, 0);
+    const raw = [
+      { email: 'b@x', rec: rec('1', 1, { ts: at(9), kg: 1 }) },
+      { email: 'a@x', rec: rec('2', 1, { ts: at(10), kg: 2 }) },
+      { email: 'a@x', rec: rec('3', 1, { ts: at(8), kg: 3 }) },
+      { email: 'b@x', rec: rec('4', 1, { ts: at(7, 27), kg: 4 }) },
+    ];
+    const v = L.buildView('weights', raw, { 'a@x': 'Ana', 'b@x': 'Ben' });
+    eq(v.tab, 'Weight');
+    eq(JSON.stringify(v.rows.map(r => r[4])), '[4,3,2,1]');
+    const tabs = Object.values(L.VIEWS).map(x => x.tab.toLowerCase());
+    eq(tabs.some(t => L.LIB.ENTITIES.map(e => e.toLowerCase()).includes(t)), false);
+  });
 }
