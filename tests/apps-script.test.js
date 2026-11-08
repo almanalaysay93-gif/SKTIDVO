@@ -122,4 +122,28 @@ export function runAppsScriptTests() {
     const s = L.sheetEditStamp('labs', { id: 'l', values: {} }, NOW, 7);
     eq(s.record.approvedBy, 'sheet edit'); eq(s.serverSeq, 7); eq(s.record.deleted, false);
   });
+
+  test('T060 whoami any user; patientRecords clinician only, needs target email', () => {
+    eq(L.authorize('whoami', 'pat@x', ['share@spmcdvo.net']).ok, true);
+    eq(L.authorize('patientRecords', 'pat@x', ['share@spmcdvo.net']).code, 'forbidden');
+    eq(L.authorize('patientRecords', 'share@spmcdvo.net', ['share@spmcdvo.net']).ok, true);
+    eq(L.validatePayload({ op: 'patientRecords', idToken: 't' }, 10, NOW).code, 'bad_email');
+    eq(L.validatePayload({ op: 'patientRecords', idToken: 't', email: 'p@x' }, 10, NOW).ok, true);
+  });
+
+  test('A019 consentGiven: latest row per email decides; withdrawn blocks; other emails ignored', () => {
+    eq(L.consentGiven([], 'p@x'), false);
+    eq(L.consentGiven([['p@x', 'v1', 1, 'given']], 'p@x'), true);
+    eq(L.consentGiven([['p@x', 'v1', 1, 'given'], ['p@x', 'v1', 2, 'withdrawn']], 'p@x'), false);
+    eq(L.consentGiven([['P@X', 'v1', 3, 'given'], ['p@x', 'v1', 2, 'withdrawn']], 'p@x'), true);
+    eq(L.consentGiven([['q@x', 'v1', 1, 'given']], 'p@x'), false);
+  });
+
+  test('T055b retention constants fixed at 365 days; tombstone older than cutoff is purgeable', () => {
+    eq(L.LIB.RETENTION_DAYS, 365);
+    const cutoff = L.tombstonePurgeCutoff(NOW, L.LIB.RETENTION_DAYS);
+    eq(NOW - 366 * 86400e3 < cutoff, true);
+    eq(NOW - 10 * 86400e3 < cutoff, false);
+    eq(L.cursorTooOld('pull', cutoff - 1, null, cutoff), true);
+  });
 }

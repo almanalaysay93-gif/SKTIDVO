@@ -20,3 +20,8 @@ export const WRITE_DEBOUNCE_MS = 3000;
 /** The 12 synced entities (plan §14.2). */
 export const ENTITIES = ['profile', 'weights', 'intake', 'sessions', 'medications', 'medLogs',
   'checklist', 'hdBp', 'dietLog', 'customFoods', 'labs', 'limits'];
+
+/** Consent/privacy text version (T061). DRAFT until the clinic approves (T064);
+    bump on any wording change so every user re-consents. */
+export const CONSENT_VERSION = 'draft-2026-11-08';
+export const CLINICIAN_EMAIL = 'share@spmcdvo.net';   // UX hint only; the server decides (C016)

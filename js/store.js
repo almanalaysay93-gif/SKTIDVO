@@ -22,7 +22,7 @@ const KEYS = {
   foodCache:   NS + 'food_cache',
   labs:        NS + 'labs',
   dietLimits:  NS + 'diet_limits',
-  clinician:   NS + 'clinician',  // PIN hash + approver; NOT in backups
+  clinician:   NS + 'clinician',  // RETIRED (FR025): removed at boot by retirePin()
   // F-SYNC-01 (device-local, never synced, never in backups)
   deviceId:    NS + 'deviceId',
   schema:      NS + 'schema',
@@ -643,7 +643,8 @@ export function restoreHdBp(entry) {
 /* ===================================================================
    Diet tracker. Units per 100 g: na/k/p mg, protein g, water g.
    null = source did not state the value; never read as zero.
-   Labs and limits stay 'pending' until a clinician PIN approves them.
+   Labs and limits stay 'pending' until share@spmcdvo.net approves them
+   server-side (FR023/FR024); approvals arrive here only via sync pull.
    =================================================================== */
 
 const NUT = ['na', 'k', 'p', 'protein', 'water'];
@@ -761,14 +762,6 @@ export function addLab({ date, values, units, origin }) {
   return entry;
 }
 
-/** status: 'approved' | 'rejected'. Caller must have verified the PIN. */
-export function decideLab(id, status, approvedBy) {
-  const list = read(KEYS.labs, []).map(l => l.id === id
-    ? { ...l, status, approvedBy: String(approvedBy || ''), approvedAt: Date.now() } : l);
-  write(KEYS.labs, list);
-  emit();
-}
-
 export function deleteLab(id) {
   write(KEYS.labs, read(KEYS.labs, []).filter(l => l.id !== id));
   emit();
@@ -797,23 +790,47 @@ export function setPendingLimits(limits) {
   emit();
 }
 
-/** approve=true promotes pending to current; false discards it. */
-export function decidePendingLimits(approve, approvedBy) {
-  const d = getDietLimits();
-  if (!d.pending) return;
-  const next = { ...d, pending: null };
-  if (approve) next.current = { ...d.pending, approvedBy: String(approvedBy || ''), approvedAt: Date.now() };
-  write(KEYS.dietLimits, next);
-  emit();
+/* ---------- PIN retired (FR025, A027) ---------- */
+
+/** Deletes the legacy clinician PIN record. Idempotent; run at every boot. */
+export function retirePin() {
+  if (localStorage.getItem(KEYS.clinician) === null) return false;
+  localStorage.removeItem(KEYS.clinician);
+  return true;
 }
 
-/* ---------- clinician PIN (hash only, never the PIN) ---------- */
+/* ---------- sync state (device-local, never synced, never in backups) ----------
+   {email, boundEmail, consentVersion, consentAt, consentEmail, cursor, lastSyncAt,
+    pendingWithdraw} — no token, ever. */
 
-export function getClinician() { return read(KEYS.clinician, null); }
+export function getSyncState() {
+  const v = readRaw(KEYS.syncState, {});
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+}
 
-export function setClinician({ salt, hash, name }) {
-  write(KEYS.clinician, { salt, hash, name: String(name || '').slice(0, 80), setAt: Date.now() });
-  emit();
+export function setSyncState(patch) {
+  const next = { ...getSyncState(), ...patch };
+  for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+  writeRaw(KEYS.syncState, next);
+  return next;
+}
+
+/** After "delete my cloud data": every local record counts as never-synced
+    again and is queued, so a later re-consent re-uploads it (C005). */
+export function markAllUnsynced() {
+  const metas = readRaw(KEYS.recMeta, {});
+  for (const [key, entity] of Object.entries(LIST_ENTITY)) {
+    const raw = readRaw(key, null);
+    if (!Array.isArray(raw)) continue;
+    writeRaw(key, raw.map(r => { const { syncedAt, ...rest } = r || {}; return rest; }));
+    raw.forEach(r => r && !r.deleted && queue(entity, r.id));
+  }
+  for (const entity of Object.values(SINGLE_ENTITY)) {
+    if (!metas[entity]) continue;
+    delete metas[entity].syncedAt;
+    queue(entity, entity);
+  }
+  writeRaw(KEYS.recMeta, metas);
 }
 
 /* ---------- restore cleaners ---------- */

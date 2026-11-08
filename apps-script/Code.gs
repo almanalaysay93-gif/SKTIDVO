@@ -46,12 +46,16 @@ function doPost(e) {
 
 function route_(b, email, now) {
   var clin = isClinician(email, clinicians_());
+  // C018 server-side gate: no data sync without a recorded consent.
+  if ((b.op === 'push' || b.op === 'pull') && !consentGiven(consentRows_(), email)) return { ok: false, code: 'no_consent' };
   switch (b.op) {
     case 'push': return push_(email, b, now, clin);
     case 'pull': return pull_(email, b);
     case 'approve': return approve_(email, b, now);
     case 'clinicianEdit': return clinicianEdit_(email, b, now);
     case 'patients': return patients_();
+    case 'patientRecords': return patientRecords_(b);
+    case 'whoami': return { ok: true, code: 'ok', data: { email: email, clinician: clin } };
     case 'consent': return consent_(email, b, now, 'given');
     case 'withdraw': return consent_(email, b, now, 'withdrawn');
     case 'deleteMe': return deleteMe_(email);
@@ -126,11 +130,27 @@ function patients_() {
   return { ok: true, code: 'ok', count: list.length, data: { patients: list } };
 }
 
+/** Clinician only (authorize): one patient's labs + limits for the approval UI. */
+function patientRecords_(b) {
+  var target = String(b.email).toLowerCase();
+  var out = [];
+  ['labs', 'limits', 'profile'].forEach(function (ent) {
+    rowsFor_(ent, target).forEach(function (r) { if (!r.rec.deleted) out.push({ entity: ent, record: r.rec }); });
+  });
+  return { ok: true, code: 'ok', count: out.length, data: { records: out } };
+}
+
 function consent_(email, b, now, state) {
   return withLock_(function () {
     sheet_('consent').appendRow([email, String(b.version || ''), now, state]);
     return { ok: true, code: 'ok', count: 1 };
   });
+}
+
+function consentRows_() {
+  var sh = sheet_('consent');
+  var last = sh.getLastRow();
+  return last < 2 ? [] : sh.getRange(2, 1, last - 1, 4).getValues();
 }
 
 function deleteMe_(email) {

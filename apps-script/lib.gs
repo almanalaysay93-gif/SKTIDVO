@@ -7,8 +7,8 @@
 var LIB = {
   ENTITIES: ['profile', 'weights', 'intake', 'sessions', 'medications', 'medLogs',
     'checklist', 'hdBp', 'dietLog', 'customFoods', 'labs', 'limits'],
-  OPS: ['push', 'pull', 'approve', 'clinicianEdit', 'patients', 'consent', 'withdraw', 'deleteMe'],
-  CLINICIAN_OPS: ['approve', 'clinicianEdit', 'patients'],
+  OPS: ['push', 'pull', 'approve', 'clinicianEdit', 'patients', 'patientRecords', 'consent', 'withdraw', 'deleteMe', 'whoami'],
+  CLINICIAN_OPS: ['approve', 'clinicianEdit', 'patients', 'patientRecords'],
   MAX_BODY_BYTES: 400 * 1024,
   MAX_RECORDS: 200,
   MAX_STRING: 2048,
@@ -82,6 +82,7 @@ function validatePayload(body, rawLength, nowMs) {
     if (typeof body.email !== 'string' || ['labs', 'limits'].indexOf(body.entity) < 0 || typeof body.id !== 'string'
       || ['approved', 'rejected'].indexOf(body.status) < 0) return { ok: false, code: 'bad_approve' };
   }
+  if (body.op === 'patientRecords' && typeof body.email !== 'string') return { ok: false, code: 'bad_email' };
   if (body.op === 'clinicianEdit') {
     if (typeof body.email !== 'string' || ['labs', 'limits'].indexOf(body.entity) < 0) return { ok: false, code: 'bad_edit' };
     var e2 = validateRecord(body.entity, body.record, nowMs);
@@ -250,10 +251,21 @@ function sheetEditStamp(entity, rec, nowMs, seq) {
   return { record: out, serverSeq: seq, serverUpdatedAt: nowMs };
 }
 
+/** consent tab rows [email, version, at, state] → true when the email's latest row is 'given'. */
+function consentGiven(rows, email) {
+  var last = null;
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (String(r[0]).toLowerCase() !== email) continue;
+    if (!last || Number(r[2]) >= Number(last[2])) last = r;
+  }
+  return !!last && last[3] === 'given';
+}
+
 if (typeof module !== 'undefined') {
   module.exports = { LIB: LIB, verifyClaims: verifyClaims, authorize: authorize, validatePayload: validatePayload,
     lww: lww, forcePendingLabs: forcePendingLabs, rateLimitDecision: rateLimitDecision,
     purgeWatermarkDecision: purgeWatermarkDecision, cursorTooOld: cursorTooOld, applyPush: applyPush,
     approveRecord: approveRecord, clinicianEditRecord: clinicianEditRecord, retentionExpired: retentionExpired,
-    tombstonePurgeCutoff: tombstonePurgeCutoff, sheetEditStamp: sheetEditStamp, isClinician: isClinician };
+    tombstonePurgeCutoff: tombstonePurgeCutoff, sheetEditStamp: sheetEditStamp, isClinician: isClinician, consentGiven: consentGiven };
 }
