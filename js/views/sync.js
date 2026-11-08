@@ -199,7 +199,10 @@ export async function signInFlow() {
     const msg = String(err && err.message || '');
     if (msg === 'popup_closed' || msg === 'access_denied') return;   // user closed the popup
     // Chrome/Safari blocked the popup (not a network failure): tell the patient how to fix it.
-    toast(t(msg === 'popup_failed' ? 'sync.popupBlocked' : 'sync.signInFailed'));
+    // Short step code so a failure can be reported exactly (no personal data).
+    const code = msg.replace(/[^a-z_0-9]/gi, '').slice(0, 40) || 'unknown';
+    toast(t(msg === 'popup_failed' ? 'sync.popupBlocked' : 'sync.signInFailed') + ' [' + code + ']');
+    console.warn('[sktidvo sign-in]', code);
   }
 }
 
