@@ -49,6 +49,7 @@ export function createEngine(deps) {
   const clearTimer = deps.clearTimer || (id => clearTimeout(id));
   const yieldFn = deps.yieldFn || (() => new Promise(r => setTimeout(r, 0)));
   const configured = deps.configured !== false;
+  const onWhoami = deps.onWhoami || (() => {});
 
   const listeners = new Set();
   let running = false;
@@ -57,6 +58,7 @@ export function createEngine(deps) {
   let error = null;
   let timer = null;
   let timerAt = 0;
+  let syncOp = true;             // server has op 'sync'; false after bad_op (pre-redeploy server)
 
   const email = () => auth.user()?.email || null;
 
@@ -130,6 +132,30 @@ export function createEngine(deps) {
     store.setSyncState({ cursor: Number(data.cursor) || since });
   }
 
+  /* One round trip: first outbox batch + pull since cursor + whoami (server op 'sync').
+     Returns false when the server predates op 'sync' (bad_op) → caller uses push/pull. */
+  async function syncOnce() {
+    const list = outbox.load();
+    const idx = {};
+    const get = (entity, id) => (idx[entity] ||= recordIndex(entity)).get(id) || null;
+    const { batch, stale } = list.length ? takeBatch(list, get) : { batch: [], stale: [] };
+    if (stale.length) outbox.save(ack(outbox.load(), stale));
+    const st = store.getSyncState();
+    const since = st.cursor || 0;
+    const body = { since, lastSyncAt: st.lastSyncAt || 0 };
+    if (batch.length) body.records = batch;
+    let data;
+    try { data = await call('sync', body); }
+    catch (e) { if (e && e.code === 'bad_op') { syncOp = false; return false; } throw e; }
+    if (data.whoami) { try { onWhoami(data.whoami); } catch { /* UX only */ } }
+    if (batch.length && data.push) { applyAck(batch, data.push); publish(); }
+    const pulled = data.pull || {};
+    await mergeRemote(pulled.records || []);
+    store.setSyncState({ cursor: Number(pulled.cursor) || since });
+    await pushAll();             // rest of a large outbox (> one batch); pulled next cycle
+    return true;
+  }
+
   function groupByEntity(records) {
     const by = {};
     for (const it of records) if (it && ENTITIES.includes(it.entity) && it.record) (by[it.entity] ||= []).push(it.record);
@@ -192,8 +218,10 @@ export function createEngine(deps) {
     publish();
     try {
       try {
-        await pushAll();
-        await pullAll();
+        if (!(syncOp && await syncOnce())) {
+          await pushAll();
+          await pullAll();
+        }
       } catch (e) {
         if (!e || e.code !== 'cursor_too_old') throw e;
         await resyncAll(e.data && e.data.purgedBefore);
@@ -250,5 +278,5 @@ export function createEngine(deps) {
   function signedOut() { cancel(); error = null; attempt = 0; publish(); }
 
   return { run, status, onStatus, publish, localWrite, giveConsent, withdraw, deleteMe, signedOut, schedule, call,
-    _state: () => ({ attempt, error, timerAt: timer ? timerAt : null }) };
+    _state: () => ({ attempt, error, timerAt: timer ? timerAt : null, syncOp }) };
 }

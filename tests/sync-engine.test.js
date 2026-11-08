@@ -9,7 +9,7 @@ import { decodeJwt, tokenFresh, setCredential, getToken, clearToken, currentUser
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
 const jwt = claims => `h.${b64(claims)}.sig`;
 
-function fakeWorld({ consent = true, email = 'pat@x' } = {}) {
+function fakeWorld({ consent = true, email = 'pat@x', syncOp = true } = {}) {
   let t = 1_000_000;
   const data = { weights: [{ id: 'w1', kg: 60, updatedAt: 10, deviceId: 'd', deleted: false }] };
   let ob = [{ entity: 'weights', id: 'w1' }];
@@ -22,6 +22,13 @@ function fakeWorld({ consent = true, email = 'pat@x' } = {}) {
     server.calls.push(op);
     if (server.fail) { const f = server.fail; server.fail = f.once ? null : f; throw f.err; }
     if (!idToken) throw new SyncError('auth', { status: 401 });
+    if (op === 'sync') {
+      if (!syncOp) throw new SyncError('bad_op');
+      const inner = async (o, b) => { try { return await api(o, b, idToken); } finally { server.calls.pop(); } };
+      const push = body.records ? await inner('push', body) : undefined;
+      const pull = await inner('pull', { since: body.since });
+      return { whoami: { email, clinician: false }, push, pull, cursor: pull.cursor };
+    }
     if (op === 'push') {
       if (server.purgedBefore && body.lastSyncAt && body.lastSyncAt < server.purgedBefore)
         throw new SyncError('cursor_too_old', { data: { purgedBefore: server.purgedBefore } });
@@ -133,7 +140,7 @@ export async function runSyncEngineTests() {
     test('A019 consent → consent op recorded, then push + pull', () => {
       eq(w.server.calls[0], 'consent');
       eq(w.st.consentVersion, CONSENT_VERSION); eq(w.st.consentEmail, 'pat@x');
-      eq(w.server.calls.includes('push'), true);
+      eq(w.server.calls.includes('sync'), true);
     });
   }
 
@@ -150,6 +157,54 @@ export async function runSyncEngineTests() {
       eq(w.engine.status().state, 'synced');
       eq(w.st.boundEmail, 'pat@x');
     });
+  }
+
+  {
+    const w = fakeWorld();
+    w.server.rows['intake|i9'] = { entity: 'intake', record: { id: 'i9', ml: 200, updatedAt: 50, deviceId: 'other', deleted: false }, seq: 99 };
+    w.server.seq = 99;
+    await w.engine.run();
+    test('op sync: ONE request per cycle (push outbox + pull + whoami)', () => {
+      eq(w.server.calls.join(), 'sync');
+      eq(w.ob.length, 0);
+      eq(Number.isFinite(w.data.weights[0].syncedAt), true);
+      eq(w.data.intake[0].id, 'i9');
+      eq(w.st.cursor, w.server.seq);
+      eq(w.engine.status().state, 'synced');
+    });
+    const n = w.server.calls.length;
+    await w.engine.run();
+    test('op sync: empty outbox → still one request (pull only)', () => eq(w.server.calls.slice(n).join(), 'sync'));
+  }
+
+  {
+    const w = fakeWorld({ syncOp: false });
+    await w.engine.run();
+    const n = w.server.calls.length;
+    w.data.weights[0] = { ...w.data.weights[0], kg: 62, updatedAt: 30 };
+    w.ob.push({ entity: 'weights', id: 'w1' });
+    await w.engine.run();
+    test('bad_op (old deployment) → falls back to push + pull; sync not retried this session', () => {
+      eq(w.server.calls.slice(0, n).join(), 'sync,push,pull');
+      eq(w.server.calls.slice(n).join(), 'push,pull');
+      eq(w.ob.length, 0);
+      eq(w.engine.status().state, 'synced');
+      eq(w.engine._state().syncOp, false);
+    });
+  }
+
+  {
+    const w = fakeWorld();
+    w.st.cursor = 7;
+    w.server.seq = 7;
+    w.server.fail = { err: new SyncError('offline'), once: true };
+    await w.engine.run();
+    test('cursor advances only after a successful pull', () => {
+      eq(w.st.cursor, 7);
+      eq(w.ob.length, 1);
+    });
+    await w.engine.run();
+    test('cursor advances after the next successful sync', () => eq(w.st.cursor, w.server.seq));
   }
 
   {
@@ -184,7 +239,7 @@ export async function runSyncEngineTests() {
     w.st.lastSyncAt = 5; w.server.purgedBefore = 100;
     await w.engine.run();
     test('cursor_too_old → snapshot pull, never-synced record re-pushed, outbox cleared', () => {
-      eq(w.server.calls.join(), 'push,pull,push');
+      eq(w.server.calls.join(), 'sync,pull,push');
       eq(!!w.server.rows['weights|w1'], true);
       eq(w.ob.length, 0);
       eq(Number.isFinite(w.data.weights[0].syncedAt), true);
@@ -202,7 +257,7 @@ export async function runSyncEngineTests() {
     w.server.calls.push = function (op) { Array.prototype.push.call(this, op); if (op === 'push') origApplyEdit(); return this.length; };
     await w.engine.run();
     test('record edited during push is not acked at the old version; new version re-pushed same cycle', () => {
-      eq(w.server.calls.filter(c => c === 'push').length, 2);
+      eq(w.server.calls.filter(c => c === 'push' || c === 'sync').length, 2);   // sync carries the first push
       eq(w.server.rows['weights|w1'].record.kg, 61);
       eq(w.data.weights[0].kg, 61);
       eq(w.ob.length, 0);

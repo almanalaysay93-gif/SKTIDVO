@@ -20,10 +20,15 @@ export const engine = createEngine({
   store: S,
   outbox: { load: () => loadOutbox(localStorage), save: l => saveOutbox(l, localStorage) },
   auth: { getToken: () => gis.getToken(), user: () => gis.currentUser(), clearToken: () => gis.clearToken() },
-  isOnline: () => navigator.onLine !== false
+  isOnline: () => navigator.onLine !== false,
+  onWhoami: me => setRole(me)
 });
 
-let role = null;                 // {email, clinician} from server whoami; UX only
+let role = null;                 // {email, clinician} from server whoami / sync; UX only
+/** Role from any verified server reply (sign-in whoami or the sync op). */
+export function setRole(me) {
+  if (me && me.email) { role = { email: me.email, clinician: !!me.clinician }; engine.publish(); }
+}
 export function getRole() { return role && role.email === gis.currentUser()?.email ? role : null; }
 
 async function refreshRole() {
@@ -41,8 +46,8 @@ function onSignedIn(user) {
     return;
   }
   S.setSyncState({ email: user.email });
-  refreshRole();
-  engine.run();
+  // Background only: UI is already rendered. Sync op returns the role; whoami only if still unknown.
+  engine.run().then(() => { if (!getRole()) refreshRole(); });
 }
 
 let confirmSwitch = () => true;

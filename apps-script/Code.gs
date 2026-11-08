@@ -48,6 +48,7 @@ function route_(b, email, now) {
   var clin = isClinician(email, clinicians_());
   // C018 server-side gate: no data sync without a recorded consent.
   if ((b.op === 'push' || b.op === 'pull') && !consentGiven(consentRows_(), email)) return { ok: false, code: 'no_consent' };
+  if (b.op === 'sync') return sync_(email, b, now, clin);
   switch (b.op) {
     case 'push': return push_(email, b, now, clin);
     case 'pull': return pull_(email, b);
@@ -64,6 +65,23 @@ function route_(b, email, now) {
 }
 
 /* ---------- ops ---------- */
+
+/** One round trip: token verified + rate-limited once (doPost), consent checked once,
+    then push (reuses push_, same lock) BEFORE pull (reuses pull_). */
+function sync_(email, b, now, clin) {
+  var plan = syncSteps(b, consentGiven(consentRows_(), email));
+  if (!plan.ok) return { ok: false, code: plan.code };
+  var data = { whoami: { email: email, clinician: clin } };
+  var count = 0;
+  for (var i = 0; i < plan.steps.length; i++) {
+    var r = plan.steps[i] === 'push' ? push_(email, b, now, clin) : pull_(email, b);
+    if (!r.ok) return { ok: false, code: r.code, data: r.data };
+    data[plan.steps[i]] = r.data;
+    count += r.count || 0;
+  }
+  data.cursor = data.pull.cursor;
+  return { ok: true, code: 'ok', count: count, data: data };
+}
 
 function push_(email, b, now, clin) {
   var purgedBefore = watermark_(email);

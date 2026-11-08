@@ -7,7 +7,7 @@
 var LIB = {
   ENTITIES: ['profile', 'weights', 'intake', 'sessions', 'medications', 'medLogs',
     'checklist', 'hdBp', 'dietLog', 'customFoods', 'labs', 'limits'],
-  OPS: ['push', 'pull', 'approve', 'clinicianEdit', 'patients', 'patientRecords', 'consent', 'withdraw', 'deleteMe', 'whoami'],
+  OPS: ['push', 'pull', 'approve', 'clinicianEdit', 'patients', 'patientRecords', 'consent', 'withdraw', 'deleteMe', 'whoami', 'sync'],
   CLINICIAN_OPS: ['approve', 'clinicianEdit', 'patients', 'patientRecords'],
   MAX_BODY_BYTES: 400 * 1024,
   MAX_RECORDS: 200,
@@ -76,7 +76,7 @@ function validatePayload(body, rawLength, nowMs) {
   if (!body || typeof body !== 'object') return { ok: false, code: 'bad_body' };
   if (LIB.OPS.indexOf(body.op) < 0) return { ok: false, code: 'bad_op' };
   if (typeof body.idToken !== 'string' || !body.idToken) return { ok: false, code: 'no_token' };
-  if (body.op === 'push') {
+  if (body.op === 'push' || (body.op === 'sync' && body.records != null)) {
     if (!Array.isArray(body.records)) return { ok: false, code: 'bad_records' };
     if (body.records.length > LIB.MAX_RECORDS) return { ok: false, code: 'too_many' };
     for (var i = 0; i < body.records.length; i++) {
@@ -85,7 +85,7 @@ function validatePayload(body, rawLength, nowMs) {
       if (err) return { ok: false, code: err, index: i };
     }
   }
-  if (body.op === 'pull' && body.since != null && !(typeof body.since === 'number' && body.since >= 0)) return { ok: false, code: 'bad_since' };
+  if ((body.op === 'pull' || body.op === 'sync') && body.since != null && !(typeof body.since === 'number' && body.since >= 0)) return { ok: false, code: 'bad_since' };
   if (body.op === 'approve') {
     if (typeof body.email !== 'string' || ['labs', 'limits'].indexOf(body.entity) < 0 || typeof body.id !== 'string'
       || ['approved', 'rejected'].indexOf(body.status) < 0) return { ok: false, code: 'bad_approve' };
@@ -270,6 +270,16 @@ function consentGiven(rows, email) {
   return !!last && last[3] === 'given';
 }
 
+/** op 'sync' plan: one request = consent check once, then push (if records) BEFORE pull.
+    → {ok:false, code:'no_consent'} | {ok:true, steps:['push'?, 'pull']}. Pure. */
+function syncSteps(body, consentOk) {
+  if (!consentOk) return { ok: false, code: 'no_consent' };
+  var steps = [];
+  if (body && Array.isArray(body.records) && body.records.length) steps.push('push');
+  steps.push('pull');
+  return { ok: true, steps: steps };
+}
+
 /* ---------- readable view tabs (derived from raw tabs; never synced) ----------
    One tab per entity, rows = [Date, Time, Patient name, Patient email, ...key fields, Details].
    Dates/times are Asia/Manila (UTC+8, no DST). Unknown fields go to Details. */
@@ -439,7 +449,7 @@ if (typeof module !== 'undefined') {
     lww: lww, forcePendingLabs: forcePendingLabs, rateLimitDecision: rateLimitDecision,
     purgeWatermarkDecision: purgeWatermarkDecision, cursorTooOld: cursorTooOld, applyPush: applyPush,
     approveRecord: approveRecord, clinicianEditRecord: clinicianEditRecord, retentionExpired: retentionExpired,
-    tombstonePurgeCutoff: tombstonePurgeCutoff, sheetEditStamp: sheetEditStamp, isClinician: isClinician, consentGiven: consentGiven,
+    tombstonePurgeCutoff: tombstonePurgeCutoff, sheetEditStamp: sheetEditStamp, isClinician: isClinician, consentGiven: consentGiven, syncSteps: syncSteps,
     VIEWS: VIEWS, manilaDateTime: manilaDateTime, viewDetails: viewDetails, viewHeader: viewHeader,
     viewRows: viewRows, sortViewRows: sortViewRows, buildView: buildView };
 }

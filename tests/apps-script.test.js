@@ -48,6 +48,23 @@ export function runAppsScriptTests() {
     eq(L.authorize('dropTables', 'share@spmcdvo.net', cl).code, 'bad_op');
   });
 
+  test('op sync: push before pull; pull only without records; rejected without consent', () => {
+    const r1 = L.syncSteps({ op: 'sync', records: [{ entity: 'weights', record: rec('a', NOW) }], since: 3 }, true);
+    eq(r1.ok, true); eq(r1.steps.join(), 'push,pull');
+    eq(L.syncSteps({ op: 'sync', since: 0 }, true).steps.join(), 'pull');
+    eq(L.syncSteps({ op: 'sync', records: [] }, true).steps.join(), 'pull');
+    const r2 = L.syncSteps({ op: 'sync', records: [{ entity: 'weights', record: rec('a', NOW) }] }, false);
+    eq(r2.ok, false); eq(r2.code, 'no_consent'); eq(r2.steps, undefined);
+  });
+
+  test('op sync: known op, same record + since validation as push/pull', () => {
+    eq(L.authorize('sync', 'pat@x.com', []).ok, true);
+    eq(L.validatePayload({ op: 'sync', idToken: 't', since: 0 }, 10, NOW).ok, true);
+    eq(L.validatePayload({ op: 'sync', idToken: 't', records: [{ entity: 'secrets', record: rec('a', 1) }] }, 10, NOW).code, 'bad_entity');
+    eq(L.validatePayload({ op: 'sync', idToken: 't', records: 'x' }, 10, NOW).code, 'bad_records');
+    eq(L.validatePayload({ op: 'sync', idToken: 't', since: -1 }, 10, NOW).code, 'bad_since');
+  });
+
   test('A029 validatePayload: caps, entity whitelist, types, future skew > 24 h', () => {
     const body = recs => ({ op: 'push', idToken: 't', records: recs });
     eq(L.validatePayload(body([{ entity: 'weights', record: rec('a', NOW) }]), 100, NOW).ok, true);

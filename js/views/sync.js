@@ -9,7 +9,7 @@
 import { call } from '../sync/api.js';
 import * as S from '../store.js';
 import { t } from '../i18n.js';
-import { configured, engine, getRole, gis, signOut } from '../sync/client.js';
+import { configured, engine, getRole, gis, setRole, signOut } from '../sync/client.js';
 import { CONSENT_VERSION } from '../sync/config.js';
 import { $, esc, fmtDate, fmtTime } from '../ui/format.js';
 import { icon } from '../ui/icons.js';
@@ -194,7 +194,7 @@ globalThis.addEventListener?.('view:rendered', () => {
 export async function signInFlow() {
   if (!navigator.onLine) { toast(t('sync.needOnline')); return; }
   try {
-    await gis.popupSignIn(raw => call('whoami', {}, { idToken: raw }));
+    await gis.popupSignIn(raw => call('whoami', {}, { idToken: raw }).then(me => { setRole(me); return me; }));
   } catch (err) {
     const msg = String(err && err.message || '');
     if (msg === 'popup_closed' || msg === 'access_denied') return;   // user closed the popup
