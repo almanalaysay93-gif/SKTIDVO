@@ -4,62 +4,21 @@
    with the radio off.
    =================================================================== */
 
-import { t, setLang, getLang, LANGS, langName, glassWord } from './i18n.js';
 import * as S from './store.js';
 import * as Cal from './calendar.js';
 import { initDiet } from './diet-view.js';
+import { getLang, glassWord, langName, LANGS, setLang, t } from './i18n.js';
+import { $, $$, esc, fmtDate, fmtTime, localeTag, nf, relDay } from './ui/format.js';
+import { icon } from './ui/icons.js';
+import { toast } from './ui/toast.js';
 
 /* ---------- tiny helpers ---------- */
-
-const $  = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-
-/** Escape anything that reaches innerHTML. Patient-entered names go here. */
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-const icon = (name, cls = '') =>
-  `<svg class="icon ${cls}" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
-
-const nf = (n, d = 1) => Number(n).toFixed(d);
-
-const localeTag = () => ({ ceb: 'fil-PH', tl: 'fil-PH', en: 'en-PH' }[getLang()]);
-
-function fmtDate(ts) {
-  return new Date(ts).toLocaleDateString(localeTag(), { day: 'numeric', month: 'short' });
-}
-function fmtTime(ts) {
-  return new Date(ts).toLocaleTimeString(localeTag(), { hour: 'numeric', minute: '2-digit' });
-}
-
-/* ---------- app state (view only; data lives in store) ---------- */
 
 let view = 'today';
 let calCursor = new Date();   // month currently shown on Today's calendar
 
 /* ===================================================================
    Toast
-   =================================================================== */
-
-function toast(msg, actionLabel, onAction) {
-  const wrap = $('#toasts');
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.setAttribute('role', 'status');          // polite; must not steal focus
-  el.innerHTML = `${icon('check')}<span>${esc(msg)}</span>`;
-  if (actionLabel) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = actionLabel;
-    b.addEventListener('click', () => { onAction?.(); el.remove(); });
-    el.appendChild(b);
-  }
-  wrap.appendChild(el);
-  setTimeout(() => el.remove(), 5000);
-}
-
-/* ===================================================================
-   Sheet (bottom modal)
    =================================================================== */
 
 let lastFocused = null;
@@ -1024,13 +983,6 @@ function sheetMedication(medId) {
 /* ===================================================================
    View: Dialysis sessions & Pre-dialysis checklist
    =================================================================== */
-
-function relDay(day) {
-  const d = S.daysBetween(day, S.dayKey());
-  if (d === 0) return t('session.today');
-  if (d === 1) return t('session.yesterday');
-  return `${d} ${t('session.daysAgo')}`;
-}
 
 function viewSession() {
   const list = S.getSessions();
