@@ -11,7 +11,7 @@ import { applyTheme } from './ui/theme.js';
 import { toast } from './ui/toast.js';
 import { engine, getRole, setSwitchConfirm, startSync } from './sync/client.js';
 import { maybePromptConsent, paintHeader, paintSettings } from './views/sync.js';
-import { welcomeDue } from './views/welcome.js';
+import { welcomeDue, welcomeSkip } from './views/welcome.js';
 
 export function wireNetwork() {
   const show = () => {
@@ -94,7 +94,10 @@ export function boot() {
     if (key !== lastState) {
       const prev = lastState;
       lastState = key;
-      if ((view === 'settings' || view === 'welcome') && prev !== null && !document.getElementById('sheet')) render();
+      // Signed in while on the sign-in page: go straight into the app (no extra page).
+      if (view === 'welcome' && prev !== null && !s.state.startsWith('signin') && !s.state.startsWith('off')) {
+        welcomeSkip((n) => { setView(n); render(); });
+      } else if ((view === 'settings' || view === 'welcome') && prev !== null && !document.getElementById('sheet')) render();
       if (prev && (prev.startsWith('signin') || prev.startsWith('off'))) maybePromptConsent(s);
     }
   });
