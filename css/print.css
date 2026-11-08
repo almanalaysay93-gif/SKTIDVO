@@ -1,6 +1,30 @@
 /* ---------- Print: the nurse handout ---------- */
+@page { size: auto; margin: 12mm; }
+
 @media print {
   .app-header, .nav, .toast-wrap, .btn, .drinks { display: none !important; }
   body { background: #fff; }
   .card { box-shadow: none; border: 1px solid #999; break-inside: avoid; }
+
+  /* Undo screen-only width bands from layout.css so the page uses full sheet width. */
+  :root { --shell-max: 100%; }
+  .shell { max-width: none; box-shadow: none; }
+  .view, .view--today { display: block !important; max-width: none !important; }
+  .main { padding: 0; margin: 0; }
+
+  /* Printed summary (js/features/print.js #printOnly markup). */
+  #printOnly, #printOnly .card { display: block; max-width: none; width: 100%; }
+  #printOnly .card, .card, table, tr, .row, .card > ul > li { break-inside: avoid; }
+  h1, h2, h3, h4, .section-title { break-after: avoid; break-inside: avoid; }
+  .hint, .row__body, .row__val, .card p, li { overflow-wrap: anywhere; }
+
+  img, svg { max-width: 100%; }
+  table { width: 100%; table-layout: auto; border-collapse: collapse; }
+
+  /* Black on white regardless of theme. */
+  body, .shell, .view, .card, .main { color: #000; background: #fff; }
+  .hint, .row__sub, .section-title { color: #000; }
+
+  /* No motion in print. */
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
