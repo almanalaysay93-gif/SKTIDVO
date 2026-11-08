@@ -1,0 +1,140 @@
+/* ---------- Shell ---------- */
+.shell {
+  max-width: var(--shell-max);
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+@media (min-width: 900px) {
+  .shell { box-shadow: var(--shadow-lg); }
+}
+
+/* ---------- App header ----------
+   Sky clay band: soft gradient + two blurred "clay" blobs drifting slowly
+   (transform only, 22s/30s, compositor-friendly), white seal badge, title,
+   clay gear. Building photo dropped: its dark scrim fought the light theme.
+   Everything animated here is switched off under prefers-reduced-motion. */
+.app-header {
+  position: sticky; top: 0; z-index: var(--z-nav);
+  height: calc(96px + env(safe-area-inset-top));
+  overflow: hidden; isolation: isolate;
+  background: linear-gradient(160deg, #F7FBFF 0%, #DCEBF8 55%, #CFE4F5 100%);
+  border-bottom: 1px solid #4F687E;   /* 4.45:1 on #CFE4F5 */
+  border-radius: 0 0 28px 28px;
+  box-shadow: inset 0 -2px 0 rgba(255,255,255,.7), 0 8px 20px -12px rgba(16,58,98,.35);
+}
+.app-header::before, .app-header::after {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  border-radius: 50%; will-change: transform;
+}
+.app-header::before {
+  width: 220px; height: 220px; top: -120px; left: -60px;
+  background: radial-gradient(circle at 40% 40%, rgba(120,180,235,.55), rgba(120,180,235,0) 70%);
+  animation: blobDriftA 22s ease-in-out infinite alternate;
+}
+.app-header::after {
+  width: 180px; height: 180px; bottom: -110px; right: 40px;
+  background: radial-gradient(circle at 50% 50%, rgba(194,24,91,.16), rgba(194,24,91,0) 70%);
+  animation: blobDriftB 30s ease-in-out infinite alternate;
+}
+@keyframes blobDriftA { to { transform: translate(140px, 40px) scale(1.15); } }
+@keyframes blobDriftB { to { transform: translate(-160px, -30px) scale(.9); } }
+.app-header__row {
+  position: relative; z-index: 1;
+  height: 100%;
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: max(env(safe-area-inset-top), var(--s-2)) var(--s-4) 0;
+  animation: headerIn 600ms var(--ease-out) both;
+}
+@keyframes headerIn { from { opacity: 0; transform: translateY(-6px); } }
+.app-header__badge {
+  position: relative; flex: 0 0 52px;
+  width: 52px; height: 52px;
+  border-radius: 50%; background: #FFFFFF;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.app-header__badge img {
+  position: absolute; inset: 4px;
+  width: calc(100% - 8px); height: calc(100% - 8px);
+  object-fit: contain;
+}
+.app-header__title {
+  flex: 1 1 auto; min-width: 0; margin: 0;
+  font-size: var(--t-lg); font-weight: 800; line-height: 1.15;
+  color: var(--fg);   /* 12.4:1 on darkest header stop #CFE4F5 */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.app-header__sub {
+  display: block; margin-top: 2px;
+  font-size: var(--t-xs); font-weight: 600; letter-spacing: .01em;
+  color: var(--fg-muted);   /* 6.2:1 on #CFE4F5 */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.app-header__gear {
+  flex: 0 0 var(--tap); width: var(--tap); height: var(--tap);
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--brand);
+  box-shadow: var(--shadow);
+  transition: background var(--dur) var(--ease-out), transform 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+  touch-action: manipulation;
+}
+.app-header__gear:hover { background: var(--brand-tint); }
+.app-header__gear:active { transform: scale(.94); box-shadow: var(--shadow-press); }
+.app-header__gear svg { width: 26px; height: 26px; }
+
+/* ---------- Main ---------- */
+.main {
+  flex: 1; margin-top: var(--s-4);
+  /* Content clears the gear rather than tucking under it: the first card
+     is often the status card, and a button clipping its border reads as
+     a rendering fault. */
+  padding: var(--s-1) var(--s-4) calc(var(--tap) + var(--s-8) + env(safe-area-inset-bottom));
+}
+.view { animation: viewIn var(--dur) var(--ease-out); }
+@keyframes viewIn { from { opacity: 0; transform: translateY(6px); } }
+
+.section-title {
+  font-size: var(--t-sm); font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--fg-muted);
+  margin: var(--s-5) 0 var(--s-3);
+}
+.section-title:first-child { margin-top: 0; }
+
+/* Logo, name and building photo already live in .app-header — this is
+   just the one-line attribution, not a second brand block. */
+.settings-intro {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-sm); color: var(--fg-muted); text-align: center;
+}
+
+/* ---------- Bottom nav ---------- */
+.nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: var(--shell-max);
+  z-index: var(--z-nav);
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: 24px 24px 0 0;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.9), 0 -8px 24px -12px rgba(16,58,98,.3);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav__item {
+  min-height: var(--tap);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: var(--s-2) var(--s-1);
+  border: 0; background: transparent; color: var(--fg-muted);
+  font-size: var(--t-xs); font-weight: 600;
+  border-top: 3px solid transparent;
+  transition: color var(--dur) var(--ease-out);
+  touch-action: manipulation;
+}
+.nav__item svg { width: 24px; height: 24px; }
+.nav__item[aria-current="page"] { color: var(--brand); border-top-color: var(--brand); background: var(--brand-tint); font-weight: 800; }
+.nav__item:active { background: var(--surface-2); box-shadow: var(--shadow-press); }

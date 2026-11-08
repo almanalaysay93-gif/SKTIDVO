@@ -1,0 +1,88 @@
+/* ===================================================================
+   SKTIDVO Fluid & Weight Tracker — design tokens + components
+   Theme: "Sky Clay" — sky blue + polar white base, hot pink for primary
+   actions, subtle claymorphism (raised = soft outer shadow + inset top
+   highlight; pressed = inset shadow). LIGHT ONLY: dark tokens and the
+   theme picker were removed; a stored profile.theme value is ignored.
+   Contrast (WCAG 2.x, computed):
+     --fg #0B2236        on --bg 14.73 | --surface 15.89 | --surface-2 13.75
+     --fg-muted #3B5268  on --bg  7.36 | --surface  7.94 | --surface-2  6.87
+                         on ok/warn/danger tints 6.78-7.12
+     #FFF on --cta #C2185B 5.87 ; on --cta-dark #9C1149 8.11
+     --cta on --surface 5.76
+     --brand #0B5FA0 on --surface 6.52 | --bg 6.04 | --brand-tint 5.47 ;
+     #FFF on --brand 6.65 ; focus ring (--brand) 6.04 on --bg
+     Status (three-colour palette, no green/amber/red):
+     --ok = sky #0B5FA0 on --ok-tint #DCEBF8 5.47
+     --warn/--danger = deep magenta #7A0E3E: on warn tint #FDF0F5 9.67,
+       on danger tint #FBE3EC 8.83, on --surface 10.51; vs button pink
+       #C2185B 1.82:1 lightness gap. Always icon + text label, outlined /
+       tinted, never a filled button shape. Warn bar = stripes, danger = solid.
+     header border #4F687E on #CFE4F5 4.45
+     --border #6B8499 (component boundary, 1.4.11) >= 3:1 on bg/surface/surface-2
+   Pink FILL is reserved for buttons; alerts use darker magenta outlines/tints.
+   Base font 18px: users skew elderly.
+   =================================================================== */
+
+:root {
+  color-scheme: light;
+  /* Sky: chrome accents, icons, links, focus, nav current. */
+  --brand:        #0B5FA0;
+  --brand-dark:   #084A7E;
+  --brand-tint:   #DCEBF8;
+  --brand-tint-2: #BFDAF1;
+  --on-brand:     #FFFFFF;
+
+  /* Hot pink: primary actions ONLY (buttons, selected segment, today). */
+  --cta:       #C2185B;
+  --cta-dark:  #9C1149;
+  --on-cta:    #FFFFFF;
+
+  /* Surfaces — cool sky-tinted off-white page, polar-white clay cards. */
+  --bg:         #EEF5FB;
+  --surface:    #FBFDFF;
+  --surface-2:  #E2EEF8;
+  --fg:         #0B2236;
+  --fg-muted:   #3B5268;
+  --border:     #6B8499;   /* visible component boundary, >= 3:1 */
+  --hairline:   color-mix(in srgb, #0B2236 14%, transparent);  /* list dividers only */
+  --border-strong: #5A7389;
+
+  --ok:        #0B5FA0;  --ok-tint:     #DCEBF8;
+  --warn:      #7A0E3E;  --warn-tint:   #FDF0F5;
+  --danger:    #7A0E3E;  --danger-tint: #FBE3EC;
+  --stripe: repeating-linear-gradient(135deg, var(--warn) 0 6px, color-mix(in srgb, var(--warn) 35%, white) 6px 12px);
+
+  /* Shape + clay depth */
+  --radius:    20px;
+  --radius-sm: 14px;
+  --radius-lg: 32px;
+  --clay-hi:   inset 0 2px 0 rgba(255,255,255,.95), inset 0 -2px 4px rgba(11,95,160,.06);
+  --shadow:    var(--clay-hi), 0 2px 4px rgba(16,58,98,.08), 0 10px 22px -10px rgba(16,58,98,.28);
+  --shadow-lg: 0 4px 10px rgba(16,58,98,.12), 0 22px 44px -12px rgba(16,58,98,.35);
+  --shadow-press: inset 0 3px 8px rgba(16,58,98,.22), inset 0 -1px 0 rgba(255,255,255,.6);
+  --dur:       200ms;
+  --ease-out:  cubic-bezier(.2,.8,.3,1);
+
+  --t-xs:  0.833rem;   /* 15px  — captions only */
+  --t-sm:  0.944rem;   /* 17px */
+  --t-md:  1rem;       /* 18px  — body */
+  --t-lg:  1.222rem;   /* 22px */
+  --t-xl:  1.556rem;   /* 28px */
+  --t-2xl: 2rem;       /* 36px */
+  --t-hero:3.111rem;   /* 56px */
+
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+
+  --z-nav: 40; --z-sheet: 100; --z-scrim: 90; --z-toast: 200;
+
+  --tap: 56px;
+  --shell-max: 480px;
+
+  /* Plus Jakarta Sans: open apertures, tall x-height (legible for older
+     eyes), one family for body + headings (700/800) = calm, professional.
+     System stack carries the app offline. */
+  --font: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, sans-serif;
+}

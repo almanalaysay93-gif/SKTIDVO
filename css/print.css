@@ -1,0 +1,6 @@
+/* ---------- Print: the nurse handout ---------- */
+@media print {
+  .app-header, .nav, .toast-wrap, .btn, .drinks { display: none !important; }
+  body { background: #fff; }
+  .card { box-shadow: none; border: 1px solid #999; break-inside: avoid; }
+}
