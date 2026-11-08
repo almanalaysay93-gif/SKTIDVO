@@ -63,27 +63,7 @@ function dayStatus() {
     const over = limit != null && isNum(total) && total > limit;
     return { ...n, total, limit, over, missing: missing[src] };
   });
-  return { entries, rows, limits, kcal: totals.kcal, kcalMissing: missing.kcal };
-}
-
-/* Calories: information only. No limit, no bar, no warning. */
-function kcalLine(kcal, miss) {
-  const { t, esc } = H;
-  const val = kcal == null && miss ? t('diet.unknown') : `${fmt(kcal ?? 0, 0)} kcal`;
-  return `
-  <div class="dnut dnut--info">
-    <div class="dnut__head">
-      <span class="dnut__name">${esc(t('diet.kcal'))}</span>
-      <span class="dnut__val tnum">${esc(val)}</span>
-    </div>
-    <p class="dnut__sub">${esc(t('diet.kcalInfo'))}</p>
-    ${miss ? `<p class="dnut__sub">${H.icon('info')}<span>${esc(fill(t('diet.missing'), { n: miss }))}</span></p>` : ''}
-  </div>`;
-}
-
-function entryKcal(e) {
-  const v = F.scale(e.per100, e.grams).kcal;
-  return v == null ? H.t('diet.kcalNotListed') : `${fmt(v, 0)} kcal`;
+  return { entries, rows, limits };
 }
 
 function bar(r) {
@@ -115,7 +95,7 @@ function bar(r) {
 
 function viewDiet() {
   const { t, esc, icon } = H;
-  const { entries, rows, limits, kcal, kcalMissing } = dayStatus();
+  const { entries, rows, limits } = dayStatus();
   const d = S.getDietLimits();
   const banners = [];
   if (!limits) banners.push(`<p class="banner">${icon('info')}<span>${esc(t('diet.noLimits'))}</span></p>`);
@@ -126,7 +106,7 @@ function viewDiet() {
     ${banners.join('')}
     <div class="card">
       <div class="card__head">${icon('bowl')}<h2>${esc(t('diet.today'))}</h2></div>
-      <div class="dnuts">${rows.map(bar).join('')}${kcalLine(kcal, entries.length ? kcalMissing : 0)}</div>
+      <div class="dnuts">${rows.map(bar).join('')}</div>
       ${limits ? `<p class="hint">${esc(fill(t('diet.approvedBy'), { name: limits.approvedBy || '—', date: limits.approvedAt ? H.fmtDate(limits.approvedAt) : '—' }))}</p>` : ''}
     </div>
 
@@ -138,7 +118,7 @@ function viewDiet() {
           <span class="row__icon">${icon('bowl')}</span>
           <span class="row__body">
             <span class="row__title">${esc(e.name)}</span>
-            <span class="row__sub">${esc(fmt(e.grams, 0))} g · ${esc(entryKcal(e))} · ${esc(srcLabel(e.source))} · ${esc(H.fmtTime(e.ts))}</span>
+            <span class="row__sub">${esc(fmt(e.grams, 0))} g · ${esc(srcLabel(e.source))} · ${esc(H.fmtTime(e.ts))}</span>
           </span>
           <button type="button" class="row__btn" data-diet="del-food" data-id="${esc(e.id)}"
                   aria-label="${esc(t('common.delete'))}: ${esc(e.name)}">${icon('trash')}</button>

@@ -642,13 +642,13 @@ export function restoreHdBp(entry) {
 }
 
 /* ===================================================================
-   Diet tracker. Units per 100 g: na/k/p mg, protein g, water g, kcal (info only).
+   Diet tracker. Units per 100 g: na/k/p mg, protein g, water g.
    null = source did not state the value; never read as zero.
    Labs and limits stay 'pending' until share@spmcdvo.net approves them
    server-side (FR023/FR024); approvals arrive here only via sync pull.
    =================================================================== */
 
-const NUT = ['na', 'k', 'p', 'protein', 'water', 'kcal'];
+const NUT = ['na', 'k', 'p', 'protein', 'water'];
 const LIMIT_FIELDS = ['na', 'k', 'p', 'protein', 'fluid'];
 const LAB_FIELDS = ['potassium', 'sodium', 'phosphorus', 'albumin', 'bun', 'creatinine', 'hemoglobin', 'calcium'];
 const FOOD_CACHE_CAP = 200;

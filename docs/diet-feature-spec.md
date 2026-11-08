@@ -27,8 +27,3 @@ Owner decisions from user (2026-11-08):
 ## Tests
 - js unit tests in tests/ harness (nutrient math, FDC/OFF parsing with fixture JSON, limit rules).
 - Python: `python tools/test_lab_ocr.py` for text-parsing function (no image needed).
-
-## Calories (added 2026-11-08)
-- `per100.kcal` (kcal per 100 g) from USDA FDC energy 208/1008 (kcal unit only; kJ rows ignored) and OFF `energy-kcal_100g`; null when absent. Additive field; no new storage key, no migration.
-- Diet screen: kcal per entry and a daily kcal total with "not listed" count. Information only — no limit, no bar, no warning.
-- License: product idea from OpenNutriTracker (GPL-3.0) README only; nothing copied or translated from it.

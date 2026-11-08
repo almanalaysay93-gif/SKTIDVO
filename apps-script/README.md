@@ -67,7 +67,7 @@ The script keeps two kinds of tabs.
 | Med log | medLogs | one row per day and medicine slot: Medicine slot, Taken (yes/no); no time |
 | Checklist log | checklist | one row per day and item: Item, Done (yes/no); no time |
 | BP | hdBp | Sys, Dia, Pulse, Note |
-| Diet | dietLog | Food, Grams, Sodium mg, Potassium mg, Phosphorus mg, Protein g, Water g, Calories (kcal) (for the grams eaten; blank when the source does not list energy), Source |
+| Diet | dietLog | Food, Grams, Sodium mg, Potassium mg, Phosphorus mg, Protein g, Water g (for the grams eaten), Source |
 | Custom foods | customFoods | Food, nutrients per 100 g, Source |
 | Lab results | labs | Lab date, Values (`analyte: value unit; ...`), Status, Approved by, Approved at |
 | Diet limits | limits | Current (approved), Pending, Approved by (Date = last change) |

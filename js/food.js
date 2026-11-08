@@ -11,7 +11,6 @@
      na, k, p   mg
      protein    g
      water      g
-     kcal       kcal (energy; information only, no limit or warning)
    A null means the source did not state the value. It is never read as
    zero.
    =================================================================== */
@@ -22,7 +21,7 @@ const FDC_URL = 'https://api.nal.usda.gov/fdc/v1/foods/search';
 export const FDC_DATA_TYPES = ['Foundation', 'SR Legacy', 'Survey (FNDDS)'];
 const OFF_ORIGIN = 'https://world.openfoodfacts.org';
 
-const NUTRIENT_KEYS = ['na', 'k', 'p', 'protein', 'water', 'kcal'];
+const NUTRIENT_KEYS = ['na', 'k', 'p', 'protein', 'water'];
 const MINERAL_KEYS = ['na', 'k', 'p'];
 
 /* FDC nutrient number is the primary match. The name is a fallback for
@@ -33,7 +32,6 @@ const FDC_NUTRIENTS = {
   p:       { number: '305', name: 'phosphorus' },
   protein: { number: '203', name: 'protein' },
   water:   { number: '255', name: 'water' },
-  kcal:    { number: '208', id: 1008, name: 'energy' },
 };
 
 /* OFF nutriments are always grams per 100 g. Water is rarely present. */
@@ -43,7 +41,6 @@ const OFF_NUTRIENTS = {
   p: 'phosphorus_100g',
   protein: 'proteins_100g',
   water: 'water_100g',
-  kcal: 'energy-kcal_100g',
 };
 
 /* ---------- small helpers ---------- */
@@ -125,18 +122,13 @@ function fdcValue(n) {
 function findFdc(list, key) {
   const want = FDC_NUTRIENTS[key];
   let hit = list.find(n => fdcNumber(n) === want.number);
-  if (!hit && want.id) hit = list.find(n => Number(n.nutrientId ?? (n.nutrient && n.nutrient.id)) === want.id);
-  if (!hit && key === 'kcal') {
-    /* Energy by name only when the unit is kcal: FDC also lists energy in kJ. */
-    hit = list.find(n => fdcName(n).trim().toLowerCase() === 'energy' && fdcUnit(n) === 'KCAL');
-  } else if (!hit) {
+  if (!hit) {
     hit = list.find(n => fdcName(n).split(',')[0].trim().toLowerCase() === want.name);
   }
   if (!hit) return null;
   const value = fdcValue(hit);
   if (value === null) return null;
   const unit = fdcUnit(hit);
-  if (key === 'kcal') return unit === 'KCAL' ? value : null;
   return MINERAL_KEYS.includes(key) ? toMg(value, unit) : toGrams(value, unit);
 }
 
@@ -179,7 +171,6 @@ export function parseOffProduct(p) {
       p: gToMg('p'),
       protein: grams('protein'),
       water: grams('water'),
-      kcal: toNum(n[OFF_NUTRIENTS.kcal]),
     },
   };
 }
