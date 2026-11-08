@@ -8,6 +8,12 @@ import * as S from './store.js';
 import * as Cal from './calendar.js';
 import { initDiet } from './diet-view.js';
 import { getLang, glassWord, langName, LANGS, setLang, t } from './i18n.js';
+import { sheetCalibrate } from './sheets/calibrate.js';
+import { sheetCustomDrink } from './sheets/drink.js';
+import { sheetHdBp } from './sheets/hdbp.js';
+import { sheetMedication } from './sheets/medication.js';
+import { sheetSession } from './sheets/session.js';
+import { sheetWeight } from './sheets/weight.js';
 import { fluidWeekChart, medsTodayChart, sessionUfChart, sparkline, weightTrendChart } from './ui/charts.js';
 import { $, $$, esc, fmtDate, fmtTime, localeTag, nf, relDay } from './ui/format.js';
 import { icon } from './ui/icons.js';
@@ -22,37 +28,6 @@ let calCursor = new Date();   // month currently shown on Today's calendar
 /* ===================================================================
    Toast
    =================================================================== */
-
-function sheetWeight() {
-  const cur = S.todayWeight();
-  openSheet({
-    title: t('weight.entryTitle'),
-    body: `
-      <div class="field">
-        <label for="wKg">${esc(t('weight.entryTitle'))} <span class="req">*</span></label>
-        <input class="input input--big" id="wKg" type="number" inputmode="decimal"
-               step="0.1" min="20" max="250" value="${cur ? cur.kg : ''}"
-               autocomplete="off" enterkeyhint="done">
-        <div class="err" id="wKg-err" role="alert" aria-live="polite"></div>
-        <p class="hint">${esc(t('weight.hint'))}</p>
-      </div>
-      <button type="button" class="btn btn--primary" id="wSave">
-        ${icon('check')}<span>${esc(t('common.save'))}</span>
-      </button>`,
-    onMount(sheet) {
-      const input = $('#wKg', sheet);
-      const save = () => {
-        const kg = readNumber(input, { min: 20, max: 250 });
-        if (kg == null) { input.focus(); return; }
-        S.logWeight(kg);
-        closeSheet();
-        toast(t('settings.saved'));
-      };
-      $('#wSave', sheet).addEventListener('click', save);
-      input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
-    }
-  });
-}
 
 const DRINKS = [
   { key: 'fluid.glass',  ml: 250, icon: 'glass'  },
@@ -71,90 +46,11 @@ const FOODS = [
   { key: 'fluid.yelo',  ml: 120, icon: 'ice'   }    // 1 cup of ice, melted
 ];
 
-function addDrink(ml, labelKey) {
+export function addDrink(ml, labelKey) {
   const entry = S.logIntake(ml, labelKey);
   toast(`${t('fluid.added')} ${ml} ${t('common.ml')}`, t('common.undo'), () => {
     S.deleteIntake(entry.id);
     toast(t('fluid.removed'));
-  });
-}
-
-function sheetCustomDrink() {
-  openSheet({
-    title: t('fluid.customTitle'),
-    body: `
-      <div class="field">
-        <label for="dMl">${esc(t('common.ml'))} <span class="req">*</span></label>
-        <input class="input input--big" id="dMl" type="number" inputmode="numeric"
-               step="10" min="10" max="3000" autocomplete="off" enterkeyhint="done">
-        <div class="err" id="dMl-err" role="alert" aria-live="polite"></div>
-      </div>
-      <button type="button" class="btn btn--primary" id="dSave">
-        ${icon('check')}<span>${esc(t('common.save'))}</span>
-      </button>`,
-    onMount(sheet) {
-      const input = $('#dMl', sheet);
-      const save = () => {
-        const ml = readNumber(input, { min: 10, max: 3000 });
-        if (ml == null) { input.focus(); return; }
-        closeSheet();
-        addDrink(ml, 'fluid.other');
-      };
-      $('#dSave', sheet).addEventListener('click', save);
-      input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
-    }
-  });
-}
-
-function sheetHdBp() {
-  openSheet({
-    title: t('hdbp.sheetTitle'),
-    body: `
-      <div class="field-row">
-        <div class="field">
-          <label for="hSys">${esc(t('hdbp.sys'))} <span class="req">*</span></label>
-          <input class="input input--big" id="hSys" type="number" inputmode="numeric"
-                 placeholder="120" min="50" max="260" autocomplete="off">
-          <div class="err" id="hSys-err" role="alert" aria-live="polite"></div>
-        </div>
-        <div class="field">
-          <label for="hDia">${esc(t('hdbp.dia'))} <span class="req">*</span></label>
-          <input class="input input--big" id="hDia" type="number" inputmode="numeric"
-                 placeholder="80" min="30" max="180" autocomplete="off">
-          <div class="err" id="hDia-err" role="alert" aria-live="polite"></div>
-        </div>
-      </div>
-      <div class="field">
-        <label for="hPulse">${esc(t('hdbp.pulse'))}</label>
-        <input class="input" id="hPulse" type="number" inputmode="numeric"
-               placeholder="72" min="30" max="220" autocomplete="off">
-        <div class="err" id="hPulse-err" role="alert" aria-live="polite"></div>
-      </div>
-      <div class="field">
-        <label for="hNote">${esc(t('hdbp.note'))}</label>
-        <input class="input" id="hNote" type="text" maxlength="200" autocomplete="off">
-      </div>
-      <button type="button" class="btn btn--primary" id="hSave">
-        ${icon('check')}<span>${esc(t('common.save'))}</span>
-      </button>`,
-    onMount(sheet) {
-      const save = () => {
-        const sys = readNumber($('#hSys', sheet), { min: 50, max: 260 });
-        if (sys == null) { $('#hSys', sheet).focus(); return; }
-        const dia = readNumber($('#hDia', sheet), { min: 30, max: 180 });
-        if (dia == null) { $('#hDia', sheet).focus(); return; }
-        const pulse = readNumber($('#hPulse', sheet), { min: 30, max: 220, required: false });
-        if (pulse === null) { $('#hPulse', sheet).focus(); return; }
-        const note = $('#hNote', sheet).value.trim();
-
-        const entry = S.logHdBp({ sys, dia, pulse: pulse ?? null, note });
-        closeSheet();
-        if (S.isLowSys(entry.sys)) toast(t('hdbp.lowAdvice'));
-        else toast(t('hdbp.saved'));
-      };
-      $('#hSave', sheet).addEventListener('click', save);
-      sheet.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
-    }
   });
 }
 
@@ -186,108 +82,6 @@ function hdBpCard() {
     </button>
   </div>`;
 }
-
-function sheetSession() {
-  openSheet({
-    title: t('session.sheetTitle'),
-    body: `
-      <div class="field">
-        <label for="sPost">${esc(t('session.postKg'))} <span class="req">*</span></label>
-        <input class="input input--big" id="sPost" type="number" inputmode="decimal"
-               step="0.1" min="20" max="250" autocomplete="off">
-        <div class="err" id="sPost-err" role="alert" aria-live="polite"></div>
-      </div>
-      <div class="field">
-        <label for="sPre">${esc(t('session.preKg'))}</label>
-        <input class="input" id="sPre" type="number" inputmode="decimal"
-               step="0.1" min="20" max="250" autocomplete="off">
-        <div class="err" id="sPre-err" role="alert" aria-live="polite"></div>
-      </div>
-      <div class="field">
-        <label for="sUf">${esc(t('session.uf'))}</label>
-        <input class="input" id="sUf" type="number" inputmode="decimal"
-               step="0.1" min="0" max="8" autocomplete="off">
-        <div class="err" id="sUf-err" role="alert" aria-live="polite"></div>
-      </div>
-      <div class="field">
-        <label for="sSys">${esc(t('session.bp'))}</label>
-        <div class="field-row">
-          <input class="input" id="sSys" type="number" inputmode="numeric"
-                 placeholder="120" min="50" max="260" autocomplete="off"
-                 aria-label="Systolic">
-          <input class="input" id="sDia" type="number" inputmode="numeric"
-                 placeholder="80" min="30" max="180" autocomplete="off"
-                 aria-label="Diastolic">
-        </div>
-        <div class="err" id="sSys-err" role="alert" aria-live="polite"></div>
-      </div>
-      <button type="button" class="btn btn--primary" id="sSave">
-        ${icon('check')}<span>${esc(t('common.save'))}</span>
-      </button>`,
-    onMount(sheet) {
-      $('#sSave', sheet).addEventListener('click', () => {
-        const post = readNumber($('#sPost', sheet), { min: 20, max: 250 });
-        if (post == null) { $('#sPost', sheet).focus(); return; }
-        const pre = readNumber($('#sPre', sheet), { min: 20, max: 250, required: false });
-        if (pre === null) { $('#sPre', sheet).focus(); return; }
-        const uf  = readNumber($('#sUf', sheet),  { min: 0,  max: 8,   required: false });
-        if (uf === null) { $('#sUf', sheet).focus(); return; }
-        const sys = readNumber($('#sSys', sheet), { min: 50, max: 260, required: false });
-        if (sys === null) { $('#sSys', sheet).focus(); return; }
-        const dia = readNumber($('#sDia', sheet), { min: 30, max: 180, required: false });
-        if (dia === null) { $('#sDia', sheet).focus(); return; }
-
-        S.logSession({ postKg: post, preKg: pre ?? null, ufL: uf ?? null,
-                       bpSys: sys ?? null, bpDia: dia ?? null });
-        closeSheet();
-        toast(t('session.saved'));
-      });
-    }
-  });
-}
-
-function sheetCalibrate() {
-  const last = S.lastSession();
-  if (!last) { toast(t('scale.needSession')); return; }
-
-  openSheet({
-    title: t('scale.calibrate'),
-    body: `
-      <p class="banner">${icon('info')}<span>${esc(t('scale.why'))}</span></p>
-      <div class="field">
-        <label>${esc(t('scale.step1'))}</label>
-        <p class="status__num tnum" style="font-size:var(--t-xl);text-align:center;margin:0">
-          ${nf(last.postKg, 1)}<span class="status__unit"> ${esc(t('common.kg'))}</span>
-        </p>
-        <p class="hint" style="text-align:center">${esc(fmtDate(last.ts))}</p>
-      </div>
-      <div class="field">
-        <label for="cHome">${esc(t('scale.step2'))} <span class="req">*</span></label>
-        <input class="input input--big" id="cHome" type="number" inputmode="decimal"
-               step="0.1" min="20" max="250" autocomplete="off" enterkeyhint="done">
-        <div class="err" id="cHome-err" role="alert" aria-live="polite"></div>
-      </div>
-      <button type="button" class="btn btn--primary" id="cSave">
-        ${icon('check')}<span>${esc(t('common.save'))}</span>
-      </button>`,
-    onMount(sheet) {
-      const input = $('#cHome', sheet);
-      const save = () => {
-        const home = readNumber(input, { min: 20, max: 250 });
-        if (home == null) { input.focus(); return; }
-        S.setScaleOffset(home, last.postKg);
-        closeSheet();
-        toast(t('settings.saved'));
-      };
-      $('#cSave', sheet).addEventListener('click', save);
-      input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
-    }
-  });
-}
-
-/* ===================================================================
-   View: Today
-   =================================================================== */
 
 function statusCard() {
   const w = S.todayWeight();
@@ -704,76 +498,6 @@ function viewMeds() {
     }).join('') : `<div class="empty">${icon('pill')}<p>${esc(t('meds.empty'))}</p></div>`}
   </div>`;
 }
-
-function sheetMedication(medId) {
-  const list = S.getMedications();
-  const cur = medId ? list.find(m => m.id === medId) : null;
-
-  openSheet({
-    title: cur ? t('meds.sheetTitle') : t('meds.addBtn'),
-    body: `
-      <div class="form-group">
-        <label for="mName">${esc(t('meds.name'))} <span class="req">*</span></label>
-        <input class="input" id="mName" type="text" value="${esc(cur ? cur.name : '')}" placeholder="e.g. Calcium Carbonate">
-      </div>
-      <div class="form-group">
-        <label for="mDose">${esc(t('meds.dose'))} <span class="req">*</span></label>
-        <input class="input" id="mDose" type="text" value="${esc(cur ? cur.dose : '')}" placeholder="e.g. 500mg (1 tablet)">
-      </div>
-      <div class="form-group">
-        <label for="mTiming">${esc(t('meds.timing'))}</label>
-        <select class="input" id="mTiming">
-          <option value="meals" ${cur?.timing === 'meals' ? 'selected' : ''}>${esc(t('meds.meals'))}</option>
-          <option value="morning" ${cur?.timing === 'morning' ? 'selected' : ''}>${esc(t('meds.morning'))}</option>
-          <option value="afternoon" ${cur?.timing === 'afternoon' ? 'selected' : ''}>${esc(t('meds.afternoon'))}</option>
-          <option value="evening" ${cur?.timing === 'evening' ? 'selected' : ''}>${esc(t('meds.evening'))}</option>
-          <option value="bedtime" ${cur?.timing === 'bedtime' ? 'selected' : ''}>${esc(t('meds.bedtime'))}</option>
-          <option value="dialysis_days" ${cur?.timing === 'dialysis_days' ? 'selected' : ''}>${esc(t('meds.dialysisDays'))}</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="mNotes">${esc(t('meds.notes'))}</label>
-        <input class="input" id="mNotes" type="text" value="${esc(cur ? cur.notes : '')}" placeholder="e.g. Take with first bite of food">
-      </div>
-      <div class="form-group" style="display:flex;align-items:center;gap:var(--s-2)">
-        <input type="checkbox" id="mHold" ${cur?.holdOnDialysis ? 'checked' : ''}>
-        <label for="mHold" style="margin:0">${esc(t('meds.holdAlert'))}</label>
-      </div>
-      <div style="display:flex;gap:var(--s-3)">
-        ${cur ? `<button type="button" class="btn btn--danger" id="mDel" style="flex:1">${icon('trash')}<span>${esc(t('common.delete'))}</span></button>` : ''}
-        <button type="button" class="btn btn--primary" id="mSave" style="flex:2">${icon('check')}<span>${esc(t('common.save'))}</span></button>
-      </div>`,
-    onMount(sheet) {
-      $('#mSave', sheet).addEventListener('click', () => {
-        const name = $('#mName', sheet).value.trim();
-        const dose = $('#mDose', sheet).value.trim();
-        if (!name || !dose) { toast('Please enter name and dose.'); return; }
-        S.saveMedication({
-          id: cur ? cur.id : null,
-          name,
-          dose,
-          timing: $('#mTiming', sheet).value,
-          notes: $('#mNotes', sheet).value.trim(),
-          holdOnDialysis: $('#mHold', sheet).checked,
-          active: true
-        });
-        closeSheet();
-        toast(t('settings.saved'));
-      });
-      if (cur) {
-        $('#mDel', sheet)?.addEventListener('click', () => {
-          S.deleteMedication(cur.id);
-          closeSheet();
-          toast(t('common.delete'));
-        });
-      }
-    }
-  });
-}
-
-/* ===================================================================
-   View: Dialysis sessions & Pre-dialysis checklist
-   =================================================================== */
 
 function viewSession() {
   const list = S.getSessions();
