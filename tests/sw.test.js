@@ -22,7 +22,7 @@ export function runSwTests() {
   const shell = [...src.match(/const SHELL = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
   const has = p => shell.includes('./' + p);
 
-  test('cache name bumped to sktidvo-v21', () => eq(/const CACHE = 'sktidvo-v21'/.test(src), true));
+  test('cache name bumped to sktidvo-v23', () => eq(/const CACHE = 'sktidvo-v23'/.test(src), true));
   test('SHELL has ./, index.html, manifest', () => {
     eq(shell.includes('./'), true); eq(has('index.html'), true); eq(has('manifest.webmanifest'), true);
   });
