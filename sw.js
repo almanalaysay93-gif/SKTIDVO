@@ -5,7 +5,7 @@
    Bump CACHE on every release or patients keep the old shell.
    =================================================================== */
 
-const CACHE = 'sktidvo-v26';
+const CACHE = 'sktidvo-v27';
 
 // Every module in the tree must be here (tests/sw.test.js checks it).
 const SHELL = [
@@ -25,6 +25,7 @@ const SHELL = [
   './js/features/backup.js',
   './js/features/cal-export.js',
   './js/features/install.js',
+  './js/features/installPopup.js',
   './js/features/print.js',
   './js/food.js',
   './js/i18n.js',

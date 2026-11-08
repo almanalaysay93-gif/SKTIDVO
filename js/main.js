@@ -4,6 +4,7 @@ import * as S from './store.js';
 import { onClick } from './events.js';
 import { importBackup } from './features/backup.js';
 import { setInstallPrompt, syncInstallUi, syncPersistUi } from './features/install.js';
+import { maybeShowInstallPopup } from './features/installPopup.js';
 import { setLang, t } from './i18n.js';
 import { render, setView, view, VIEWS } from './router.js';
 import { $ } from './ui/format.js';
@@ -71,7 +72,10 @@ export function boot() {
     e.preventDefault();                  // keep the mini-infobar off; we have our own button
     setInstallPrompt(e);
     syncInstallUi();
+    maybeShowInstallPopup({ view });
   });
+  // One-time install popup on open (not on the sign-in page; once per session).
+  setTimeout(() => maybeShowInstallPopup({ view }), 2500);
   addEventListener('appinstalled', () => { setInstallPrompt(null); syncInstallUi(); });
 
   addEventListener('hashchange', () => {
