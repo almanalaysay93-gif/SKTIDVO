@@ -8,7 +8,7 @@ import { icon } from '../ui/icons.js';
 import { Diet } from './diet.js';
 import { gis } from '../sync/client.js';
 import { consentOk } from '../sync/engine.js';
-import { accountBar, localOnlyNote } from './sync.js';
+import { localOnlyNote } from './sync.js';
 
 /** Signed in AND consented = backed up automatically. */
 const syncSignedIn = () => { const u = gis.currentUser(); return !!u && consentOk(S.getSyncState(), u.email); };
@@ -291,7 +291,6 @@ export function viewToday() {
   return `
   <div class="view view--today">
     <div class="today-col today-col--main">
-      ${accountBar()}
       ${reminderBanners()}
       ${nudge}
       ${status}
