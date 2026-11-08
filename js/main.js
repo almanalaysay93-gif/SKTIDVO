@@ -38,6 +38,19 @@ function wireBadge() {
   else img.addEventListener('error', drop, { once: true });
 }
 
+const SPLASH_MIN_MS = 700;   // keep the logo on screen long enough to be seen
+const splashStart = Date.now();
+function hideSplash() {
+  const el = document.getElementById('splash');
+  if (!el) return;
+  const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - splashStart));
+  setTimeout(() => {
+    el.classList.add('is-done');
+    el.addEventListener('transitionend', () => el.remove(), { once: true });
+    setTimeout(() => el.remove(), 600);   // fallback if no transition runs
+  }, wait);
+}
+
 export function boot() {
   S.migrateV2();   // F-SYNC-01 schema v2 (idempotent)
   S.retirePin();   // FR025: PIN retired, legacy hash deleted
@@ -48,6 +61,7 @@ export function boot() {
 
   setView((location.hash || '#today').slice(1));
   if (!VIEWS[view]) setView('today');
+  hideSplash();
 
   document.addEventListener('click', onClick);
 
