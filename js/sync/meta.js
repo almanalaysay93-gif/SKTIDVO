@@ -53,3 +53,38 @@ export function stableJson(v) {
 export function isDirty(r) {
   return !Number.isFinite(r.syncedAt) || r.updatedAt > r.syncedAt;
 }
+
+/* ---------- daily sync quota (local mirror of the server limit) ----------
+   Stored in sync state as quota: {email, day, used, resetAt}. Non-secret. */
+
+const MANILA_OFFSET_MS = 8 * 3600000;
+
+/** ms -> 'YYYY-MM-DD' in Asia/Manila (UTC+8, no DST). */
+export function manilaDayKey(ms) {
+  return new Date(Number(ms) + MANILA_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** Next Asia/Manila midnight after ms (epoch ms). */
+export function nextManilaMidnight(ms) {
+  return (Math.floor((Number(ms) + MANILA_OFFSET_MS) / 86400000) + 1) * 86400000 - MANILA_OFFSET_MS;
+}
+
+/** Today's usage for `email` -> {used, limit, remaining, resetAt}. Rolls over at Manila midnight
+    (and when a server resetAt has passed). Another account's counter does not apply. */
+export function quotaState(q, email, now, limit) {
+  const fresh = !!q && q.email === email && q.day === manilaDayKey(now) && !(q.resetAt && now >= q.resetAt);
+  const used = fresh ? Math.min(limit, Number(q.used) || 0) : 0;
+  return { used, limit, remaining: Math.max(0, limit - used), resetAt: nextManilaMidnight(now) };
+}
+
+/** Quota record after one server-accepted cycle (prefers the server's own count). */
+export function bumpQuota(q, email, now, limit, serverUsed) {
+  const cur = quotaState(q, email, now, limit).used;
+  const used = Number.isFinite(serverUsed) ? Math.min(limit, serverUsed) : Math.min(limit, cur + 1);
+  return { email, day: manilaDayKey(now), used, resetAt: nextManilaMidnight(now) };
+}
+
+/** Quota record after the server refused with daily_limit. */
+export function exhaustQuota(email, now, limit, resetAt) {
+  return { email, day: manilaDayKey(now), used: limit, resetAt: Number(resetAt) || nextManilaMidnight(now) };
+}

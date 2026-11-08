@@ -4,13 +4,15 @@ import { suite, test, eq } from './harness.js';
 import { call, interpret, SyncError } from '../js/sync/api.js';
 import { createEngine, computeStatus } from '../js/sync/engine.js';
 import { CONSENT_VERSION } from '../js/sync/config.js';
+import { bumpQuota, manilaDayKey, nextManilaMidnight, quotaState } from '../js/sync/meta.js';
+import { quotaText, syncNowEnabled } from '../js/views/sync.js';
 import { decodeJwt, tokenFresh, setCredential, getToken, clearToken, currentUser } from '../js/auth/gis.js';
 
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
 const jwt = claims => `h.${b64(claims)}.sig`;
 
-function fakeWorld({ consent = true, email = 'pat@x', syncOp = true } = {}) {
-  let t = 1_000_000;
+function fakeWorld({ consent = true, email = 'pat@x', syncOp = true, t0 = 1_000_000 } = {}) {
+  let t = t0;
   const data = { weights: [{ id: 'w1', kg: 60, updatedAt: 10, deviceId: 'd', deleted: false }] };
   let ob = [{ entity: 'weights', id: 'w1' }];
   let st = consent ? { consentVersion: CONSENT_VERSION, consentEmail: email } : {};
@@ -310,5 +312,65 @@ export async function runSyncEngineTests() {
     w.token = null;
     await w.engine.run();
     test('A033 no token → no request at all', () => eq(w.server.calls.length, 0));
+  }
+
+  suite('sync-quota');
+  const MID = Date.UTC(2026, 10, 8, 16, 0, 0);            // 2026-11-09 00:00 Asia/Manila
+  test('local count: rolls over at Manila midnight; other account not counted', () => {
+    eq(manilaDayKey(MID - 1), '2026-11-08'); eq(manilaDayKey(MID), '2026-11-09');
+    eq(nextManilaMidnight(MID - 5000), MID);
+    let q = null;
+    for (let i = 0; i < 4; i++) q = bumpQuota(q, 'a@x', MID - 60000, 4);
+    eq(quotaState(q, 'a@x', MID - 1, 4).remaining, 0);
+    eq(quotaState(q, 'a@x', MID, 4).remaining, 4);
+    eq(quotaState(q, 'b@x', MID - 1, 4).used, 0);
+    eq(bumpQuota(null, 'a@x', MID - 1, 4, 3).used, 3);    // server count wins
+  });
+  test('manual Sync now disabled at 0 left; label "2 of 4"', () => {
+    eq(syncNowEnabled({ used: 4, limit: 4, remaining: 0 }), false);
+    eq(syncNowEnabled({ used: 2, limit: 4, remaining: 2 }), true);
+    eq(syncNowEnabled(null), true);
+    eq(quotaText({ used: 2, limit: 4 }, () => '{used} of {limit} syncs used today'), '2 of 4 syncs used today');
+  });
+
+  {
+    const w = fakeWorld({ t0: MID - 3 * 3600000 });
+    for (let i = 0; i < 4; i++) { w.ob.length || w.engine.localWrite(); await w.engine.run(); }
+    const callsAt4 = w.server.calls.length;
+    w.engine.localWrite();
+    const before = w.server.calls.length;
+    await w.engine.run();
+    test('4 cycles used → 5th not sent (local stop), state quota, canSyncNow false', () => {
+      eq(w.st.quota.used, 4); eq(w.server.calls.length, before); eq(before, callsAt4);
+      eq(w.engine.status().state, 'quota'); eq(w.engine.canSyncNow(), false);
+    });
+  }
+
+  {
+    const w = fakeWorld({ t0: MID - 3600000 });
+    w.server.fail = { once: true, err: new SyncError('offline') };
+    await w.engine.run();
+    test('network failure does not count against the 4', () => eq(w.st.quota, undefined));
+    w.server.fail = { once: true, err: new SyncError('daily_limit', { data: { resetAt: MID } }) };
+    w.data.weights[0] = { ...w.data.weights[0], updatedAt: 99 };
+    const obBefore = w.ob.length;
+    await w.engine.run();
+    test('server daily_limit → stop (no error), outbox + local data kept, retry timer at resetAt', () => {
+      eq(w.engine.status().state, 'quota'); eq(w.engine._state().error, null);
+      eq(w.ob.length, obBefore); eq(obBefore > 0, true); eq(w.data.weights.length, 1);
+      const last = w.timers[w.timers.length - 1];
+      eq(last.ms >= 3600000, true);
+    });
+    const n = w.server.calls.length;
+    await w.engine.run({ auto: true });
+    test('no retry before resetAt', () => eq(w.server.calls.length, n));
+    w.tick(3600000 + 1000);                                  // next Manila day
+    await w.engine.run({ auto: true });
+    test('next day: auto run syncs the saved outbox once', () => {
+      eq(w.server.calls.length, n + 1); eq(w.ob.length, 0); eq(w.st.quota.used, 1);
+      eq(w.st.quota.day, '2026-11-09');
+    });
+    await w.engine.run({ auto: true });
+    test('auto trigger with empty outbox after a cycle today → skipped', () => eq(w.server.calls.length, n + 1));
   }
 }

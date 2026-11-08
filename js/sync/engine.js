@@ -6,21 +6,24 @@
    entities (NFR008). The ID token comes from auth.getToken() per call.
    =================================================================== */
 
-import { BATCH_MAX_RECORDS, CONSENT_VERSION, ENTITIES, WRITE_DEBOUNCE_MS } from './config.js';
+import { BATCH_MAX_RECORDS, CONSENT_VERSION, DAILY_SYNC_LIMIT, ENTITIES, WRITE_DEBOUNCE_MS } from './config.js';
+import { bumpQuota, exhaustQuota, quotaState } from './meta.js';
 import { markAcked, merge, resync } from './merge.js';
 import { ack, nextRetryAt, takeBatch } from './queue.js';
 
 const MAX_PUSH_ROUNDS = 50;
 
 /** Pure status: {state, pending, lastSyncAt, error}. state ∈
-    off | signin | consent | offline | syncing | pending | synced | error. */
-export function computeStatus({ configured = true, user, hasToken, consentOk, online, pending, lastSyncAt, error, running }) {
-  const base = { pending, lastSyncAt: lastSyncAt || null, error: error || null };
+    off | signin | consent | offline | syncing | quota | pending | synced | error.
+    quota = today's sync allowance used up; data stays on the phone until resetAt. */
+export function computeStatus({ configured = true, user, hasToken, consentOk, online, pending, lastSyncAt, error, running, quota = null }) {
+  const base = { pending, lastSyncAt: lastSyncAt || null, error: error || null, quota };
   if (!configured || !user) return { ...base, state: 'off' };
   if (!hasToken) return { ...base, state: 'signin' };
   if (!consentOk) return { ...base, state: 'consent' };
   if (!online) return { ...base, state: 'offline' };
   if (running) return { ...base, state: 'syncing' };
+  if (quota && quota.remaining <= 0) return { ...base, state: 'quota' };
   if (error) return { ...base, state: 'error' };
   if (pending > 0 || !lastSyncAt) return { ...base, state: 'pending' };
   return { ...base, state: 'synced' };
@@ -61,12 +64,18 @@ export function createEngine(deps) {
   let syncOp = true;             // server has op 'sync'; false after bad_op (pre-redeploy server)
 
   const email = () => auth.user()?.email || null;
+  const limit = deps.dailyLimit || DAILY_SYNC_LIMIT;
+  /** Today's allowance for the signed-in account (null when signed out). */
+  function quota() {
+    const me = email();
+    return me ? quotaState(store.getSyncState().quota, me, now(), limit) : null;
+  }
 
   function status() {
     const st = store.getSyncState();
     return computeStatus({
       configured, user: auth.user(), hasToken: !!auth.getToken(), consentOk: consentOk(st, email()),
-      online: isOnline(), pending: outbox.load().length, lastSyncAt: st.lastSyncAt, error, running
+      online: isOnline(), pending: outbox.load().length, lastSyncAt: st.lastSyncAt, error, running, quota: quota()
     });
   }
   function publish() { const s = status(); listeners.forEach(fn => { try { fn(s); } catch { /* UI listener */ } }); return s; }
@@ -134,7 +143,7 @@ export function createEngine(deps) {
 
   /* One round trip: first outbox batch + pull since cursor + whoami (server op 'sync').
      Returns false when the server predates op 'sync' (bad_op) → caller uses push/pull. */
-  async function syncOnce() {
+  async function syncOnce(serverQuota = {}) {
     const list = outbox.load();
     const idx = {};
     const get = (entity, id) => (idx[entity] ||= recordIndex(entity)).get(id) || null;
@@ -148,6 +157,7 @@ export function createEngine(deps) {
     try { data = await call('sync', body); }
     catch (e) { if (e && e.code === 'bad_op') { syncOp = false; return false; } throw e; }
     if (data.whoami) { try { onWhoami(data.whoami); } catch { /* UX only */ } }
+    if (data.quota && Number.isFinite(Number(data.quota.used))) serverQuota.used = Number(data.quota.used);
     if (batch.length && data.push) { applyAck(batch, data.push); publish(); }
     const pulled = data.pull || {};
     await mergeRemote(pulled.records || []);
@@ -196,6 +206,12 @@ export function createEngine(deps) {
   }
 
   function fail(e) {
+    if (e && e.code === 'daily_limit') {          // a stop, not an error: outbox kept, wait for the next day
+      const q = exhaustQuota(email(), now(), limit, e.data && e.data.resetAt);
+      store.setSyncState({ quota: q });
+      error = null; attempt = 0; cancel(); schedule(q.resetAt - now() + 1000);
+      return;
+    }
     if (e && e.status === 401) { auth.clearToken(); error = null; attempt = 0; return; }   // re-auth prompt, no storm
     if (e && e.code === 'no_consent') { store.setSyncState({ consentVersion: undefined }); error = null; return; }
     error = (e && e.code) || 'error';
@@ -204,11 +220,16 @@ export function createEngine(deps) {
     if (at != null) { cancel(); schedule(at - now()); }
   }
 
-  async function run() {
+  /** opts.auto: app open / visibility / online trigger. An auto run is skipped when nothing is
+      queued and today's allowance was already touched (keeps the daily cycles for real changes). */
+  async function run(opts = {}) {
     if (running) { rerun = true; return status(); }
     const st = store.getSyncState();
     const me = email();
     if (!configured || !me || !auth.getToken()) return publish();
+    const q0 = quota();
+    if (q0.remaining <= 0) { cancel(); schedule(q0.resetAt - now() + 1000); return publish(); }   // stop locally before the server refuses
+    if (opts.auto && !outbox.load().length && q0.used > 0) return publish();
     if (st.pendingWithdraw && isOnline()) {
       try { await call('withdraw', { version: st.pendingWithdraw }); store.setSyncState({ pendingWithdraw: undefined }); }
       catch { /* retried next cycle; sync stays off anyway */ }
@@ -216,9 +237,10 @@ export function createEngine(deps) {
     if (!consentOk(store.getSyncState(), me) || !isOnline()) return publish();
     running = true;
     publish();
+    const serverQuota = {};
     try {
       try {
-        if (!(syncOp && await syncOnce())) {
+        if (!(syncOp && await syncOnce(serverQuota))) {
           await pushAll();
           await pullAll();
         }
@@ -226,7 +248,8 @@ export function createEngine(deps) {
         if (!e || e.code !== 'cursor_too_old') throw e;
         await resyncAll(e.data && e.data.purgedBefore);
       }
-      store.setSyncState({ lastSyncAt: now(), boundEmail: me });
+      store.setSyncState({ lastSyncAt: now(), boundEmail: me,
+        quota: bumpQuota(store.getSyncState().quota, me, now(), limit, serverQuota.used) });   // only server-accepted cycles count
       attempt = 0;
       error = null;
     } catch (e) {
@@ -240,6 +263,8 @@ export function createEngine(deps) {
 
   /** Local write happened (store emit): debounce a push if anything is queued. */
   function localWrite() {
+    const q = quota();
+    if (q && q.remaining <= 0) return publish();   // saved on the phone; syncs the next day
     if (outbox.load().length && consentOk(store.getSyncState(), email()) && auth.getToken()) schedule(WRITE_DEBOUNCE_MS);
     else publish();
   }
@@ -277,6 +302,9 @@ export function createEngine(deps) {
 
   function signedOut() { cancel(); error = null; attempt = 0; publish(); }
 
-  return { run, status, onStatus, publish, localWrite, giveConsent, withdraw, deleteMe, signedOut, schedule, call,
+  /** Manual "Sync now" allowed? (false when today's allowance is used up). */
+  function canSyncNow() { const q = quota(); return !q || q.remaining > 0; }
+
+  return { run, status, quota, canSyncNow, onStatus, publish, localWrite, giveConsent, withdraw, deleteMe, signedOut, schedule, call,
     _state: () => ({ attempt, error, timerAt: timer ? timerAt : null, syncOp }) };
 }

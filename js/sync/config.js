@@ -16,6 +16,7 @@ export const FUTURE_SKEW_MS = 24 * 60 * 60 * 1000;
 export const RETENTION_DAYS = 365;
 export const BACKUP_REMINDER_DAYS = 14;
 export const WRITE_DEBOUNCE_MS = 3000;
+export const DAILY_SYNC_LIMIT = 4;      // sync cycles per account per Asia/Manila day (server enforces too)
 
 /** The 12 synced entities (plan §14.2). */
 export const ENTITIES = ['profile', 'weights', 'intake', 'sessions', 'medications', 'medLogs',

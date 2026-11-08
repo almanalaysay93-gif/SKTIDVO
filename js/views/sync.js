@@ -28,6 +28,7 @@ export function statusLabel(s, tr = t, time = fmtTime) {
     case 'syncing': return { icon: 'upload', text: tr('sync.state.syncing'), tone: 'info' };
     case 'pending': return { icon: 'upload', text: fill(tr('sync.state.pending'), { n: s.pending }), tone: 'info' };
     case 'synced':  return { icon: 'check-circle', text: fill(tr('sync.state.synced'), { time: time(s.lastSyncAt) }), tone: 'ok' };
+    case 'quota':   return { icon: 'info', text: tr('sync.quotaReached'), tone: 'info' };
     case 'error':   return { icon: 'alert', text: tr('sync.state.error'), tone: 'warn' };
     default:        return { icon: 'info', text: tr('sync.state.off'), tone: 'off' };
   }
@@ -56,6 +57,20 @@ export function paintSettings(s = engine.status()) {
   const l = statusLabel(s);
   el.innerHTML = `${icon(l.icon)}<span>${esc(l.text)}</span>`;
   el.dataset.tone = l.tone;
+  const u = $('#syncQuotaLine');
+  if (u && s.quota) u.textContent = quotaText(s.quota);
+  const btn = document.querySelector('[data-sync="now"]');
+  if (btn) btn.disabled = !syncNowEnabled(s.quota);
+}
+
+/** Pure: "2 of 4 syncs used today". */
+export function quotaText(q, tr = t) {
+  return fill(tr('sync.quotaUsed'), { used: q.used, limit: q.limit });
+}
+
+/** Pure: manual Sync now is allowed only while today's allowance remains. */
+export function syncNowEnabled(q) {
+  return !q || q.remaining > 0;
 }
 
 /* ---------- signed-out note (Today + Settings; persistent, not a popup) ---------- */
@@ -115,7 +130,8 @@ export function syncSection() {
         <p class="row__sub">${esc(fill(t('sync.signedInAs'), { email: user.email }))}</p>
         ${s.state === 'consent' ? `
           <button type="button" class="btn btn--primary" data-sync="consent" style="width:100%">${icon('shield')}<span>${esc(t('consent.review'))}</span></button>` : `
-          <button type="button" class="btn btn--primary" data-sync="now" style="width:100%">${icon('upload')}<span>${esc(t('sync.now'))}</span></button>`}
+          ${s.quota ? `<p class="row__sub" id="syncQuotaLine">${esc(quotaText(s.quota))}</p>` : ''}
+          <button type="button" class="btn btn--primary" data-sync="now" style="width:100%"${syncNowEnabled(s.quota) ? '' : ' disabled'}>${icon('upload')}<span>${esc(t('sync.now'))}</span></button>`}
         <div style="height:var(--s-3)"></div>
         <button type="button" class="btn btn--ghost" data-sync="signout" style="width:100%">${icon('x')}<span>${esc(t('sync.signOut'))}</span></button>
         ${st.consentVersion ? `<div style="height:var(--s-3)"></div>
@@ -344,7 +360,7 @@ export function onSyncClick(e) {
   switch (el.dataset.sync) {
     case 'goSignin': return 'welcome';
     case 'signin': signInFlow(el.dataset.slot || '#gisButton'); break;
-    case 'now': engine.run(); break;
+    case 'now': if (engine.canSyncNow()) engine.run(); else toast(t('sync.quotaReached')); break;
     case 'consent': sheetConsent(); break;
     case 'signout': signOut(); toast(t('sync.signedOut')); break;
     case 'withdraw': withdrawFlow(); break;

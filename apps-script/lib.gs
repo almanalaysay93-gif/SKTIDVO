@@ -17,6 +17,9 @@ var LIB = {
   RATE_PER_MIN: 60,
   RATE_PER_DAY: 600,
   RETENTION_DAYS: 365,
+  DAILY_SYNC_LIMIT: 4,                 // sync cycles per account per Manila day
+  QUOTA_OPS: ['sync', 'push', 'pull'], // ops gated by the daily limit
+  QUOTA_GRACE_MS: 10 * 60 * 1000,      // push continuation of an accepted cycle
   ISSUERS: ['accounts.google.com', 'https://accounts.google.com']
 };
 
@@ -444,6 +447,44 @@ function buildView(entity, raw, names) {
   return { tab: VIEWS[entity].tab, header: viewHeader(entity), rows: sortViewRows(rows) };
 }
 
+/* ---------- daily sync quota (per account, Asia/Manila day) ---------- */
+
+/** ms → 'YYYY-MM-DD' in Asia/Manila (UTC+8, no DST). */
+function dayKeyManila(ms) {
+  var d = new Date(Number(ms) + 8 * 3600000);
+  return d.getUTCFullYear() + '-' + (d.getUTCMonth() < 9 ? '0' : '') + (d.getUTCMonth() + 1) + '-' + (d.getUTCDate() < 10 ? '0' : '') + d.getUTCDate();
+}
+
+/** Next Manila midnight after ms, as epoch ms. */
+function nextManilaMidnight(ms) {
+  var off = 8 * 3600000;
+  return (Math.floor((Number(ms) + off) / 86400000) + 1) * 86400000 - off;
+}
+
+/** Stored {day, count, lastAt} → today's count (0 after Manila midnight). */
+function quotaCount(stored, nowMs) {
+  return stored && stored.day === dayKeyManila(nowMs) ? Number(stored.count) || 0 : 0;
+}
+
+/**
+ * Daily-limit decision. op 'sync'/'pull' start a cycle (counted); 'push'
+ * only continues one (allowed under the limit, or within QUOTA_GRACE_MS of
+ * the last counted cycle so a large outbox finishes). Pure.
+ * → {allow, count(bool), remaining, resetAt}
+ */
+function quotaDecision(count, limit, op, lastAt, nowMs) {
+  limit = limit || LIB.DAILY_SYNC_LIMIT;
+  count = Number(count) || 0;
+  var resetAt = nextManilaMidnight(nowMs);
+  if (LIB.QUOTA_OPS.indexOf(op) < 0) return { allow: true, count: false, remaining: Math.max(0, limit - count), resetAt: resetAt };
+  if (op === 'push') {
+    var grace = lastAt && nowMs - lastAt < LIB.QUOTA_GRACE_MS && dayKeyManila(lastAt) === dayKeyManila(nowMs);
+    return { allow: count < limit || !!grace, count: false, remaining: Math.max(0, limit - count), resetAt: resetAt };
+  }
+  if (count >= limit) return { allow: false, count: false, remaining: 0, resetAt: resetAt };
+  return { allow: true, count: true, remaining: limit - count - 1, resetAt: resetAt };
+}
+
 if (typeof module !== 'undefined') {
   module.exports = { LIB: LIB, verifyClaims: verifyClaims, accessTokenClaims: accessTokenClaims, authorize: authorize, validatePayload: validatePayload,
     lww: lww, forcePendingLabs: forcePendingLabs, rateLimitDecision: rateLimitDecision,
@@ -451,5 +492,6 @@ if (typeof module !== 'undefined') {
     approveRecord: approveRecord, clinicianEditRecord: clinicianEditRecord, retentionExpired: retentionExpired,
     tombstonePurgeCutoff: tombstonePurgeCutoff, sheetEditStamp: sheetEditStamp, isClinician: isClinician, consentGiven: consentGiven, syncSteps: syncSteps,
     VIEWS: VIEWS, manilaDateTime: manilaDateTime, viewDetails: viewDetails, viewHeader: viewHeader,
-    viewRows: viewRows, sortViewRows: sortViewRows, buildView: buildView };
+    viewRows: viewRows, sortViewRows: sortViewRows, buildView: buildView,
+    dayKeyManila: dayKeyManila, nextManilaMidnight: nextManilaMidnight, quotaCount: quotaCount, quotaDecision: quotaDecision };
 }

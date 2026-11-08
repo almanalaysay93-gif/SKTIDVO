@@ -34,11 +34,17 @@ function doPost(e) {
   var rl = rateLimit_(email, now);
   if (!rl.allow) return json_({ ok: false, code: 429, data: { retryAfter: rl.retryAfter } });
 
+  var q = quotaReserve_(email, body.op, now);
+  if (!q.allow) { audit_(email, body.op, 0, 'daily_limit'); return json_({ ok: false, code: 'daily_limit', data: { resetAt: q.resetAt, limit: LIB.DAILY_SYNC_LIMIT } }); }
+
   try {
     var out = route_(body, email, now);
+    if (q.count && !out.ok) quotaRelease_(email, now);      // only server-accepted cycles count
+    if (out.ok && body.op === 'sync' && out.data) out.data.quota = { used: q.used, limit: LIB.DAILY_SYNC_LIMIT, resetAt: q.resetAt };
     audit_(email, body.op, out.count || 0, out.ok ? 'ok' : out.code);
     return json_(out);
   } catch (err) {
+    if (q.count) quotaRelease_(email, now);
     audit_(email, body.op, 0, 'error');
     return json_({ ok: false, code: 'server_error' });
   }
@@ -230,6 +236,39 @@ function rateLimit_(email, now) {
     if (dec.allow) { cache.put(mk, String(m + 1), 120); cache.put(dk, String(d + 1), 21600); }
     return dec;
   } finally { lock.releaseLock(); }
+}
+
+/* ---------- daily sync quota (Script Properties 'quota:<email>' = {day,count,lastAt}) ---------- */
+
+/** Atomic check-and-reserve under the script lock. Non-quota ops pass untouched. */
+function quotaReserve_(email, op, now) {
+  if (LIB.QUOTA_OPS.indexOf(op) < 0) return { allow: true, count: false };
+  return withLock_(function () {
+    var props = PropertiesService.getScriptProperties();
+    var key = 'quota:' + email;
+    var stored = null;
+    try { stored = JSON.parse(props.getProperty(key) || 'null'); } catch (err) { stored = null; }
+    var n = quotaCount(stored, now);
+    var dec = quotaDecision(n, LIB.DAILY_SYNC_LIMIT, op, stored && stored.lastAt, now);
+    if (dec.allow && dec.count) {
+      props.setProperty(key, JSON.stringify({ day: dayKeyManila(now), count: n + 1, lastAt: now }));
+      n += 1;
+    }
+    return { allow: dec.allow, count: dec.count, used: n, resetAt: dec.resetAt };
+  });
+}
+
+/** Give back a reserved cycle when the op did not succeed. */
+function quotaRelease_(email, now) {
+  try {
+    withLock_(function () {
+      var props = PropertiesService.getScriptProperties();
+      var key = 'quota:' + email;
+      var stored = JSON.parse(props.getProperty(key) || 'null');
+      var n = quotaCount(stored, now);
+      if (n > 0) props.setProperty(key, JSON.stringify({ day: dayKeyManila(now), count: n - 1, lastAt: stored.lastAt }));
+    });
+  } catch (err) { /* never fail a request on quota bookkeeping */ }
 }
 
 /* ---------- sheet IO ---------- */

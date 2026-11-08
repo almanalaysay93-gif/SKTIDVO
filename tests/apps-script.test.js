@@ -235,4 +235,34 @@ export function runAppsScriptTests() {
     const tabs = Object.values(L.VIEWS).map(x => x.tab.toLowerCase());
     eq(tabs.some(t => L.LIB.ENTITIES.map(e => e.toLowerCase()).includes(t)), false);
   });
+
+  test('quota: dayKeyManila rolls over at Manila midnight (16:00 UTC)', () => {
+    const mid = Date.UTC(2026, 10, 8, 16, 0, 0);          // 2026-11-09 00:00 Manila
+    eq(L.dayKeyManila(mid - 1), '2026-11-08'); eq(L.dayKeyManila(mid), '2026-11-09');
+    eq(L.nextManilaMidnight(mid - 1), mid); eq(L.nextManilaMidnight(mid), mid + 86400000);
+    eq(L.quotaCount({ day: '2026-11-08', count: 3 }, mid - 1), 3);
+    eq(L.quotaCount({ day: '2026-11-08', count: 3 }, mid), 0);
+    eq(L.quotaCount(null, mid), 0);
+  });
+
+  test('quota: 4 sync cycles allowed, 5th refused with resetAt; other ops untouched', () => {
+    const now = Date.UTC(2026, 10, 8, 2, 0, 0);
+    eq(L.LIB.DAILY_SYNC_LIMIT, 4);
+    eq(L.quotaDecision(0, 4, 'sync', 0, now).allow, true); eq(L.quotaDecision(0, 4, 'sync', 0, now).count, true);
+    eq(L.quotaDecision(3, 4, 'sync', 0, now).remaining, 0);
+    const no = L.quotaDecision(4, 4, 'sync', 0, now);
+    eq(no.allow, false); eq(no.resetAt, Date.UTC(2026, 10, 8, 16, 0, 0));
+    eq(L.quotaDecision(4, 4, 'pull', 0, now).allow, false);
+    ['whoami', 'consent', 'withdraw', 'deleteMe', 'approve', 'patients'].forEach(op => {
+      const d = L.quotaDecision(9, 4, op, 0, now); eq(d.allow, true); eq(d.count, false);
+    });
+  });
+
+  test('quota: legacy push is never counted; allowed after the limit only as a recent cycle continuation', () => {
+    const now = Date.UTC(2026, 10, 8, 2, 0, 0);
+    eq(L.quotaDecision(2, 4, 'push', 0, now).count, false);
+    eq(L.quotaDecision(4, 4, 'push', now - 60000, now).allow, true);
+    eq(L.quotaDecision(4, 4, 'push', now - 3600000, now).allow, false);
+    eq(L.quotaDecision(4, 4, 'push', 0, now).allow, false);
+  });
 }

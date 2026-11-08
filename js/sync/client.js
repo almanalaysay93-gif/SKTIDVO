@@ -98,11 +98,11 @@ export function startSync() {
     if (!u) { lastEmail = null; engine.publish(); }
   });
   S.subscribe(() => engine.localWrite());
-  addEventListener('online', () => { engine.publish(); if (gis.getToken()) engine.run(); else trySilent(); });
+  addEventListener('online', () => { engine.publish(); if (gis.getToken()) engine.run({ auto: true }); else trySilent(); });
   addEventListener('offline', () => engine.publish());
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
-    if (gis.getToken()) engine.run(); else if (wasSignedIn()) trySilent();
+    if (gis.getToken()) engine.run({ auto: true }); else if (wasSignedIn()) trySilent();   // next-day auto sync
   });
   trySilent();
 }
