@@ -198,7 +198,8 @@ export async function signInFlow() {
   } catch (err) {
     const msg = String(err && err.message || '');
     if (msg === 'popup_closed' || msg === 'access_denied') return;   // user closed the popup
-    toast(t('sync.signInFailed'));
+    // Chrome/Safari blocked the popup (not a network failure): tell the patient how to fix it.
+    toast(t(msg === 'popup_failed' ? 'sync.popupBlocked' : 'sync.signInFailed'));
   }
 }
 
