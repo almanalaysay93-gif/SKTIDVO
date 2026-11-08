@@ -79,7 +79,7 @@ Framework rewrite · build step · own server (Apps Script only) · Sheets API f
 
 ## 10. Resolved questions (user, 2026-11-08)
 - **OQ-01** Min versions: Android 8+ (WebView/Chrome 90+), iOS/iPadOS 15+ Safari, last 2 desktop browser versions (Chrome, Edge, Firefox, Safari). → NFR006, T040, T041.
-- **OQ-02** Repo `https://github.com/almanalaysay93-gif/skti-tubig.git`; Pages base path `/skti-tubig/`; deploy via GitHub Actions static upload of web files only (exclude android/, tools/, node_modules, *.apk, *.py; tests/ optional — excluded by default). → FR011, T030, T043.
+- **OQ-02** Repo `https://github.com/almanalaysay93-gif/SKTIDVO.git`; Pages base path `/SKTIDVO/`; deploy via GitHub Actions static upload of web files only (exclude android/, tools/, node_modules, *.apk, *.py; tests/ optional — excluded by default). → FR011, T030, T043.
 - **OQ-03** Restored labs/limits are reset to `pending`; must be re-approved by clinician login (Rev 3). → FR008, A007, T022.
 - **OQ-04** Translations + warning copy reviewed by the user after the build. → T045 (owner: user).
 - **OQ-05** Android build verified by the user on own phone after build. → T046 (owner: user; Phase 2, deferred).

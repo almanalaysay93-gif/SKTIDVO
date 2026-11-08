@@ -1,4 +1,4 @@
-# project_context.md — SKTIDVO (skti-tubig)
+# project_context.md — SKTIDVO (SKTIDVO)
 
 Rev 3.4 · 2026-11-08 · Author: Agent 21 (Markdown Planner) · Mode: Buildme Markdown adapter; native Spec Kit not run
 Feature IDs: F-RESTRUCTURE-01 (modular split + tablet layout + GH Pages offline hardening) · F-SYNC-01 (optional Google Sign-In + two-way Google Sheet sync, added Rev 3)
@@ -43,7 +43,7 @@ Optional online only: USDA FDC search, Open Food Facts barcode (food.js:18-20), 
 
 ## 7. Working tree (git status 2026-11-08)
 Uncommitted: diet feature (diet-view/food/limits + tests), icon PNGs, `app-debug.apk`, icon scripts, docs/, tools/, speckit-theme-design/. Committed on `feat/diet-theme` as d60a336 (OQ-08 resolved).
-Hosting target: https://github.com/almanalaysay93-gif/skti-tubig.git → GitHub Pages `/skti-tubig/`.
+Hosting target: https://github.com/almanalaysay93-gif/SKTIDVO.git → GitHub Pages `/SKTIDVO/`.
 
 ## 8. Absent
 No PROJECT_MEMORY.md, AGENTS.md, lint config, in-repo node test runner, GH Pages workflow, screenshot tooling, www sync script.

@@ -50,7 +50,7 @@ Advisory: no deploy between T014 and T027 (stale SW SHELL).
 | T039 | Performance run (Lighthouse mobile throttled, INP) | OR | T038 | NFR002 | — | A015 |
 | T040 | Desktop browser smoke Chrome/Edge/Firefox/Safari (last 2) + Android Chrome browser | OR | T039 | NFR006 | — | A016 |
 | T041 | iOS 15+ Safari PWA smoke (A2HS, offline) | OR | T040 | NFR006, FR014 | — | A017, A002 on iOS |
-| T043 | Deploy + smoke on `/skti-tubig/` incl. SW update test | OR | T041 | FR004, FR012 | — | A003, A010 |
+| T043 | Deploy + smoke on `/SKTIDVO/` incl. SW update test | OR | T041 | FR004, FR012 | — | A003, A010 |
 | T044 | Restructure review + anti-slop sign-off; PROJECT_MEMORY.md entry | OR | T043 | C012 | PROJECT_MEMORY.md | all Phase 1 restructure tasks have evidence |
 | T045 | Translation + warning copy review (tl/ceb/en) | USER | T044 | C007, OQ-04 | — | user sign-off; fixes → OI |
 

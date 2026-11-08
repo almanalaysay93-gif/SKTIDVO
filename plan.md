@@ -102,7 +102,7 @@ Replace existing single 900px breakpoint. Orientation: change `manifest.webmanif
 - Update toast guarded: show only if `navigator.serviceWorker.controller` existed before `controllerchange` (avoids firing on first install via `clients.claim`).
 - GH Pages: `.nojekyll`; Actions workflow uploads only web files.
 - iOS: keep `navigator.storage.persist()` (existing syncPersistUi). FR014: features/install.js detects iOS Safari non-standalone (`navigator.standalone === false` + iOS UA) → dismissible A2HS instructions card (dismiss flag in localStorage `skti.v1.` namespace, new key `a2hsDismissed`, additive, not in backup). Backup reminder: store `lastBackupAt` on export (additive key); show the reminder card on Today when >14 days have passed AND the user is NOT signed in to sync (signed-in users are backed up automatically). The interval is a fixed internal default, not a setting.
-- GH Pages: repo almanalaysay93-gif/skti-tubig, served at `/skti-tubig/`; `.github/workflows/pages.yml` uses actions/upload-pages-artifact + deploy-pages, staging only index.html, css/, js/, assets/, sw.js, manifest.webmanifest, .nojekyll.
+- GH Pages: repo almanalaysay93-gif/SKTIDVO, served at `/SKTIDVO/`; `.github/workflows/pages.yml` uses actions/upload-pages-artifact + deploy-pages, staging only index.html, css/, js/, assets/, sw.js, manifest.webmanifest, .nojekyll.
 
 ## 7. Security (see also §14.8 for F-SYNC-01)
 - CSP meta: `default-src 'self'; script-src 'self'; connect-src 'self' https://api.nal.usda.gov https://world.openfoodfacts.org; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'`.
