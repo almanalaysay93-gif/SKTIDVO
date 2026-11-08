@@ -16,7 +16,9 @@
    =================================================================== */
 
 const FDC_URL = 'https://api.nal.usda.gov/fdc/v1/foods/search';
-const FDC_DATA_TYPES = 'Foundation,SR%20Legacy,Survey%20(FNDDS)';
+/* Sent in a POST JSON body: the api.data.gov gateway answers HTTP 400 (nginx)
+   to some percent-encoded forms of 'Survey (FNDDS)' in the query string. */
+export const FDC_DATA_TYPES = ['Foundation', 'SR Legacy', 'Survey (FNDDS)'];
 const OFF_ORIGIN = 'https://world.openfoodfacts.org';
 
 const NUTRIENT_KEYS = ['na', 'k', 'p', 'protein', 'water'];
@@ -77,10 +79,13 @@ function fail(code, message, status) {
 
 /* fetch wrapper. Aborts are rethrown untouched so callers can ignore
    them. Network failure becomes OFFLINE. */
-async function getJson(url, signal, { allow404 = false } = {}) {
+async function getJson(url, signal, { allow404 = false, body } = {}) {
   let res;
   try {
-    res = await fetch(url, { signal, headers: { Accept: 'application/json' } });
+    res = await fetch(url, body === undefined
+      ? { signal, headers: { Accept: 'application/json' } }
+      : { signal, method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify(body) });
   } catch (e) {
     if (e && e.name === 'AbortError') throw e;
     throw fail('OFFLINE', 'Network request failed');
@@ -176,9 +181,8 @@ export function parseOffProduct(p) {
 export async function searchFdc(query, apiKey = 'DEMO_KEY', { signal } = {}) {
   const q = String(query ?? '').trim();
   if (!q) return [];
-  const url = `${FDC_URL}?query=${encodeURIComponent(q)}&pageSize=15`
-    + `&dataType=${FDC_DATA_TYPES}&api_key=${encodeURIComponent(apiKey || 'DEMO_KEY')}`;
-  const json = await getJson(url, signal);
+  const url = `${FDC_URL}?api_key=${encodeURIComponent(String(apiKey || '').trim() || 'DEMO_KEY')}`;
+  const json = await getJson(url, signal, { body: { query: q, pageSize: 15, dataType: FDC_DATA_TYPES } });
   const foods = Array.isArray(json && json.foods) ? json.foods : [];
   return foods.map(parseFdcFood).filter(Boolean);
 }
