@@ -97,8 +97,8 @@ async function init() {
 export async function renderButton(el, { locale } = {}) {
   await init();
   globalThis.google.accounts.id.renderButton(el, {
-    type: 'standard', theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill',
-    width: Math.min(320, el.clientWidth || 320), locale
+    type: 'standard', theme: 'filled_blue', size: 'large', text: 'signin_with', shape: 'pill',
+    width: Math.min(400, el.clientWidth || 320), locale
   });
 }
 

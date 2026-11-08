@@ -96,8 +96,8 @@ export function syncSection() {
         <button type="button" class="btn btn--danger" data-sync="deleteme" style="width:100%">${icon('trash')}<span>${esc(t('sync.deleteCloud'))}</span></button>
       ` : `
         ${st.email ? `<p class="row__sub">${esc(fill(t('sync.signInAgain'), { email: st.email }))}</p>` : ''}
-        <button type="button" class="btn btn--primary" data-sync="signin" style="width:100%">${icon('shield')}<span>${esc(t('welcome.signIn'))}</span></button>
-        <div id="gisButton" class="gis-slot"></div>
+        <p class="row__sub">${esc(t('welcome.signIn'))}</p>
+        <div id="gisButton" class="gis-slot" data-gis-auto></div>
       `}
       <div style="height:var(--s-3)"></div>
       <button type="button" class="btn btn--ghost" data-sync="privacy" style="width:100%">${icon('info')}<span>${esc(t('privacy.open'))}</span></button>
@@ -184,6 +184,20 @@ async function deleteFlow(confirmed = false) {
     toast(t('sync.failed'));
   }
 }
+
+/** Mount Google's own button into every [data-gis-auto] slot after a render.
+    One button only: our styled button cannot start the ID-token popup itself. */
+export async function mountGoogleButtons() {
+  if (!navigator.onLine) return;
+  for (const slot of document.querySelectorAll('[data-gis-auto]')) {
+    if (slot.dataset.mounted) continue;
+    slot.dataset.mounted = '1';
+    try {
+      await gis.renderButton(slot, { locale: { ceb: 'ceb', tl: 'fil', en: 'en' }[S.getProfile().lang] });
+    } catch { slot.innerHTML = ''; toast(t('sync.signInFailed')); }
+  }
+}
+globalThis.addEventListener?.('view:rendered', () => { mountGoogleButtons(); });
 
 export async function signInFlow(slotSel = '#gisButton') {
   if (!navigator.onLine) { toast(t('sync.needOnline')); return; }

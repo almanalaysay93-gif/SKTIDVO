@@ -62,4 +62,5 @@ export function render() {
   // Settings-only widgets; both no-op on other views.
   syncInstallUi();
   syncPersistUi();
+  globalThis.dispatchEvent?.(new Event('view:rendered'));
 }
